@@ -11,7 +11,7 @@ export class Summarizer {
   }
 
   async summarize(item) {
-    const prefix = item.sourceKind === "polymarket" ? "新Polymarket" : this.defaultPrefix;
+    const prefix = item.alertPrefix || (item.sourceKind === "polymarket" ? "新Polymarket" : this.defaultPrefix);
     const title = cleanNewsText(item.title);
     const description = cleanNewsText(item.description);
 
@@ -35,14 +35,14 @@ export class Summarizer {
             role: "system",
             content: [{
               type: "input_text",
-              text: "你是中文金融快讯编辑。只提取一条最有用的事实，写成一句自然、简洁、可独立阅读的中文短讯。不得补充原文没有的事实，不做投资建议，不写市场影响，不写来源，不放链接，不用Markdown，不换行。保留关键数字、公司、人名和政策动作。"
+              text: "你是中文金融快讯编辑。只提取一条最有用、最能影响市场决策的事实，写成一句自然、简洁、可独立阅读的中文短讯。删除背景铺垫、媒体署名、重复信息和空泛评价。不得补充原文没有的事实，不做投资建议，不写市场影响，不写来源，不放链接，不用Markdown，不换行。保留关键数字、公司、人名和政策动作。"
             }]
           },
           {
             role: "user",
             content: [{
               type: "input_text",
-              text: `要求：正文最多${this.maxChineseChars}个中文字符左右；只写一个事实；不要添加“突发”或“快讯”前缀。\n来源类型：${item.sourceKind}\n标题：${title}\n摘要：${description}`
+              text: `要求：正文最多${this.maxChineseChars}个中文字符左右；只写一个事实；不要添加“突发”或“快讯”前缀。\n重要性分数：${item.importanceScore ?? "未提供"}/100\n来源类型：${item.sourceKind}\n标题：${title}\n摘要：${description}`
             }]
           }
         ]
@@ -78,6 +78,7 @@ function cleanNewsText(value) {
   return stripHtml(String(value || ""))
     .replace(/https?:\/\/\S+/gi, "")
     .replace(/^(?:【[^】]{1,24}】|\[[^\]]{1,24}\])\s*/g, "")
+    .replace(/^(?:财联社|panews|律动|深潮|金色财经)\s*(?:\d{1,2}月\d{1,2}日电|消息|快讯)?[：:\s-]*/i, "")
     .replace(/\s+/g, " ")
     .trim();
 }
