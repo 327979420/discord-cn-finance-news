@@ -1,0 +1,25 @@
+{
+  "rss": [
+    {
+      "name": "财联社电报",
+      "url": "http://rsshub:1200/cls/telegraph",
+      "language": "zh",
+      "enabled": true
+    }
+  ],
+  "polymarket": {
+    "enabled": true,
+    "limit": 30,
+    "minVolume": 0
+  },
+  "gdelt": {
+    "enabled": false,
+    "maxRecordsPerQuery": 15,
+    "queries": [
+      "Federal Reserve OR inflation OR tariff",
+      "NVIDIA OR OpenAI OR DeepSeek OR artificial intelligence",
+      "Bitcoin OR Ethereum OR cryptocurrency",
+      "gold OR XAUUSD OR US dollar"
+    ]
+  }
+}
