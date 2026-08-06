@@ -7,6 +7,8 @@ export class RssSource {
     this.name = options.name;
     this.url = options.url;
     this.language = options.language;
+    this.preserveTitle = options.preserveTitle === true;
+    this.forceSourceUrl = options.forceSourceUrl === true;
   }
 
   async fetch(context) {
@@ -14,7 +16,12 @@ export class RssSource {
       headers: { "user-agent": "discord-cn-finance-news/0.1" }
     }, context.timeoutMs);
     if (!response.ok) throw new Error(`RSS 请求失败：${response.status} ${response.statusText}`);
-    return parseFeed(await response.text(), { name: this.name, language: this.language });
+    return parseFeed(await response.text(), {
+      name: this.name,
+      language: this.language,
+      preserveTitle: this.preserveTitle,
+      forceSourceUrl: this.forceSourceUrl
+    });
   }
 }
 
@@ -49,7 +56,9 @@ function parseItem(block, source, isAtom) {
     ...(url ? { url: decodeXml(url).trim() } : {}),
     ...(imageUrl ? { imageUrl: decodeXml(imageUrl).trim() } : {}),
     publishedAt,
-    ...(source.language ? { language: source.language } : {})
+    ...(source.language ? { language: source.language } : {}),
+    ...(source.preserveTitle ? { preserveTitle: true } : {}),
+    ...(source.forceSourceUrl ? { forceSourceUrl: true } : {})
   };
 }
 
