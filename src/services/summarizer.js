@@ -70,13 +70,7 @@ export function extractOutputText(data) {
 export function selectUsefulText(title, description, maxChars) {
   const cleanTitle = cleanNewsText(title);
   const cleanDescription = cleanNewsText(description);
-  let candidate = cleanTitle || cleanDescription;
-
-  // 新闻标题通常已经是最浓缩的信息。只有标题过短时才补一小段摘要。
-  if (cleanTitle && cleanTitle.length < 12 && cleanDescription && !cleanDescription.startsWith(cleanTitle)) {
-    candidate = `${cleanTitle}：${firstSentence(cleanDescription)}`;
-  }
-
+  const candidate = cleanTitle || cleanDescription;
   return truncateChineseStyle(firstSentence(candidate), maxChars);
 }
 
@@ -92,12 +86,7 @@ function firstSentence(text) {
   const cleaned = String(text || "").replace(/\s+/g, " ").trim();
   if (!cleaned) return "";
   const parts = cleaned.match(/[^。！？!?]+[。！？!?]?/g) || [cleaned];
-  let result = "";
-  for (const part of parts) {
-    result += part.trim();
-    if (result.length >= 16 || /[。！？!?]$/.test(result)) break;
-  }
-  return result.trim();
+  return parts[0].trim();
 }
 
 function formatMessage(prefix, body, maxChars) {
