@@ -16,7 +16,7 @@
       "language": "zh",
       "preserveTitle": true,
       "forceSourceUrl": true,
-      "enabled": true
+      "enabled": false
     }
   ],
   "polymarket": {
