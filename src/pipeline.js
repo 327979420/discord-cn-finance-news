@@ -1,5 +1,6 @@
 import { sha256 } from "./utils/hash.js";
 import { matchesKeywordRules, normalizeForHash } from "./utils/text.js";
+import { selectImportantItems } from "./services/importance.js";
 
 export async function runPipelineCycle(deps) {
   const { config, sources, store, summarizer, publisher, logger } = deps;
@@ -18,20 +19,42 @@ export async function runPipelineCycle(deps) {
 
   const now = Date.now();
   const maxAgeMs = config.MAX_NEWS_AGE_MINUTES * 60000;
-  const candidates = items
+  const eligible = items
     .filter((item) => {
       const publishedAt = new Date(item.publishedAt).getTime();
       return Number.isFinite(publishedAt) && now - publishedAt <= maxAgeMs && publishedAt <= now + 300000;
     })
     .filter((item) => matchesKeywordRules(item.title, item.description, config.includeKeywords, config.excludeKeywords))
-    .sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt))
-    .slice(-config.MAX_ITEMS_PER_CYCLE);
+    .filter((item) => !store.isProcessed(item.id));
+
+  const { selected: candidates, evaluated } = selectImportantItems(eligible, {
+    minScore: config.MIN_IMPORTANCE_SCORE,
+    breakingScore: config.BREAKING_IMPORTANCE_SCORE,
+    maxItems: config.MAX_ITEMS_PER_CYCLE,
+    maxPerSource: config.MAX_ITEMS_PER_SOURCE
+  });
+
+  let filteredJunk = 0;
+  let filteredLowImportance = 0;
+  for (const { item, importance } of evaluated) {
+    if (importance.shouldSend) continue;
+    store.markProcessed(item, `filtered:${importance.reason}`);
+    if (["junk", "generic-politics", "irrelevant-polymarket", "empty"].includes(importance.reason)) filteredJunk += 1;
+    else filteredLowImportance += 1;
+  }
+
+  logger.info({
+    eligible: eligible.length,
+    selected: candidates.length,
+    filteredJunk,
+    filteredLowImportance,
+    threshold: config.MIN_IMPORTANCE_SCORE
+  }, "重要性筛选完成");
 
   let sent = 0;
   let duplicate = 0;
   let skippedNoAi = 0;
   for (const item of candidates) {
-    if (store.isProcessed(item.id)) continue;
     const contentHash = sha256(normalizeForHash(`${item.title} ${item.description || ""}`));
     if (store.hasContentHash(contentHash)) {
       store.markProcessed(item, "duplicate");
@@ -42,7 +65,7 @@ export async function runPipelineCycle(deps) {
       const message = await summarizer.summarize(item);
       if (!message) {
         skippedNoAi += 1;
-        logger.warn({ source: item.source, title: item.title }, "英文新闻需要 OPENAI_API_KEY，暂未发送");
+        logger.warn({ source: item.source, title: item.title, score: item.importanceScore }, "英文新闻需要 OPENAI_API_KEY，暂未发送");
         continue;
       }
       const messageHash = sha256(normalizeForHash(message));
@@ -55,12 +78,22 @@ export async function runPipelineCycle(deps) {
       if (config.DRY_RUN) store.markProcessed(item, "dry-run");
       else store.recordSent(item, contentHash, messageHash);
       sent += 1;
-      logger.info({ source: item.source, message }, config.DRY_RUN ? "本地预览完成" : "已推送至 Discord");
+      logger.info({ source: item.source, score: item.importanceScore, message }, config.DRY_RUN ? "本地预览完成" : "已推送至 Discord");
     } catch (error) {
-      logger.error({ source: item.source, title: item.title, error: errorToString(error) }, "处理新闻失败，将在下轮重试");
+      logger.error({ source: item.source, title: item.title, score: item.importanceScore, error: errorToString(error) }, "处理新闻失败，将在下轮重试");
     }
   }
-  return { fetched: items.length, candidates: candidates.length, sent, duplicate, skippedNoAi, failedSources };
+  return {
+    fetched: items.length,
+    eligible: eligible.length,
+    candidates: candidates.length,
+    sent,
+    duplicate,
+    skippedNoAi,
+    filteredJunk,
+    filteredLowImportance,
+    failedSources
+  };
 }
 
 function errorToString(error) {
