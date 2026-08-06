@@ -1,0 +1,85 @@
+name: Chinese Finance News Broadcast
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview only, do not send to Discord
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # Every 10 minutes, staggered away from the top of the hour.
+    - cron: "3,13,23,33,43,53 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: chinese-finance-news-broadcast
+  cancel-in-progress: false
+
+jobs:
+  broadcast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check configuration
+        id: config
+        shell: bash
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          DRY_RUN_INPUT: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || false }}
+        run: |
+          READY=true
+          if [[ "$DRY_RUN_INPUT" != "true" && -z "$DISCORD_WEBHOOK_URL" ]]; then
+            READY=false
+            echo "::notice::Add the DISCORD_WEBHOOK_URL repository secret to enable broadcasts."
+          fi
+          echo "ready=$READY" >> "$GITHUB_OUTPUT"
+          echo "dry_run=$DRY_RUN_INPUT" >> "$GITHUB_OUTPUT"
+
+      - name: Run checks for manual execution
+        if: steps.config.outputs.ready == 'true' && github.event_name == 'workflow_dispatch'
+        run: npm run check
+
+      - name: Fetch and broadcast news
+        if: steps.config.outputs.ready == 'true'
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-5-mini
+          DISCORD_USERNAME: 情报助手
+          CONFIG_PATH: config/sources.json
+          DATABASE_PATH: .state/news.db
+          MAX_NEWS_AGE_MINUTES: 45
+          MAX_ITEMS_PER_CYCLE: 8
+          RUN_ONCE: true
+          DRY_RUN: ${{ steps.config.outputs.dry_run }}
+          NODE_NO_WARNINGS: 1
+        run: node src/index.js
+
+      - name: Save deduplication state
+        if: steps.config.outputs.ready == 'true' && success() && steps.config.outputs.dry_run != 'true'
+        shell: bash
+        run: |
+          if [[ ! -f .state/news.db ]]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .state/news.db
+          if ! git diff --cached --quiet; then
+            git commit -m "Update finance news delivery state"
+            git push
+          fi
