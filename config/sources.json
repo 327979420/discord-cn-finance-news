@@ -3,7 +3,22 @@
     "enabled": true,
     "limit": 50
   },
-  "rss": [],
+  "rss": [
+    {
+      "name": "PANews快讯",
+      "url": "https://www.panewslab.com/rss.xml?lang=zh-CN&type=NEWS",
+      "language": "zh",
+      "enabled": true
+    },
+    {
+      "name": "Yahoo股市国际财经",
+      "url": "https://tw.stock.yahoo.com/rss?category=intl-markets",
+      "language": "zh",
+      "preserveTitle": true,
+      "forceSourceUrl": true,
+      "enabled": true
+    }
+  ],
   "polymarket": {
     "enabled": true,
     "limit": 30,
