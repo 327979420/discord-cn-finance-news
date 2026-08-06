@@ -15,6 +15,9 @@ export function loadConfig() {
     POLL_INTERVAL_SECONDS: integer("POLL_INTERVAL_SECONDS", 120, 30, 86400),
     MAX_NEWS_AGE_MINUTES: integer("MAX_NEWS_AGE_MINUTES", 180, 1, 10080),
     MAX_ITEMS_PER_CYCLE: integer("MAX_ITEMS_PER_CYCLE", 8, 1, 50),
+    MAX_ITEMS_PER_SOURCE: integer("MAX_ITEMS_PER_SOURCE", 2, 1, 20),
+    MIN_IMPORTANCE_SCORE: integer("MIN_IMPORTANCE_SCORE", 60, 0, 100),
+    BREAKING_IMPORTANCE_SCORE: integer("BREAKING_IMPORTANCE_SCORE", 82, 0, 100),
     REQUEST_TIMEOUT_MS: integer("REQUEST_TIMEOUT_MS", 20000, 1000, 120000),
     DRY_RUN: boolean("DRY_RUN", false),
     RUN_ONCE: boolean("RUN_ONCE", false),
@@ -27,6 +30,9 @@ export function loadConfig() {
     sources
   };
 
+  if (config.BREAKING_IMPORTANCE_SCORE < config.MIN_IMPORTANCE_SCORE) {
+    throw new Error("BREAKING_IMPORTANCE_SCORE 不能低于 MIN_IMPORTANCE_SCORE");
+  }
   if (!config.DRY_RUN && !config.DISCORD_WEBHOOK_URL) {
     throw new Error("缺少 DISCORD_WEBHOOK_URL。先复制 .env.example 为 .env 并填入 Webhook；只预览可设置 DRY_RUN=true。");
   }
