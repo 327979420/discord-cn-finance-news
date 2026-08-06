@@ -8,6 +8,10 @@ on:
         required: false
         default: false
         type: boolean
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/news-broadcast.yml"
   schedule:
     # Every 10 minutes, staggered away from the top of the hour.
     - cron: "3,13,23,33,43,53 * * * *"
