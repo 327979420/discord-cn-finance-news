@@ -11,6 +11,8 @@ export class Summarizer {
   }
 
   async summarize(item) {
+    if (item.preserveTitle) return stripHtml(item.title).trim();
+
     const originalText = stripHtml([item.title, item.description].filter(Boolean).join("。"));
     const prefix = item.sourceKind === "polymarket" ? "新Polymarket" : this.defaultPrefix;
     if (!this.apiKey) {
