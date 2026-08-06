@@ -36,6 +36,10 @@ export function loadConfig() {
 function readSources(filePath) {
   const absolutePath = path.resolve(filePath);
   const raw = JSON.parse(fs.readFileSync(absolutePath, "utf8"));
+  const cls = {
+    enabled: raw.cls?.enabled === true,
+    limit: boundedNumber(raw.cls?.limit, 50, 1, 100, "cls.limit")
+  };
   const rss = Array.isArray(raw.rss)
     ? raw.rss.map((source, index) => ({
         name: requiredString(source?.name, `rss[${index}].name`),
@@ -54,7 +58,7 @@ function readSources(filePath) {
     maxRecordsPerQuery: boundedNumber(raw.gdelt?.maxRecordsPerQuery, 15, 1, 250, "gdelt.maxRecordsPerQuery"),
     queries: Array.isArray(raw.gdelt?.queries) ? raw.gdelt.queries.map(String).map((value) => value.trim()).filter(Boolean) : []
   };
-  return { rss, polymarket, gdelt };
+  return { cls, rss, polymarket, gdelt };
 }
 
 function requiredString(value, label) {
