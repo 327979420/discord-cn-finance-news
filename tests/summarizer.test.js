@@ -11,3 +11,16 @@ test("uses Chinese passthrough without API key", async () => {
   const result = await summarizer.summarize({ id: "1", source: "测试", sourceKind: "rss", title: "黄金价格上涨", publishedAt: new Date().toISOString() });
   assert.equal(result, "快讯：黄金价格上涨。");
 });
+
+test("preserves an original RSS headline when requested", async () => {
+  const summarizer = new Summarizer({ model: "unused", defaultPrefix: "快讯", maxChineseChars: 50, timeoutMs: 1000 });
+  const result = await summarizer.summarize({
+    id: "2",
+    source: "Yahoo股市",
+    sourceKind: "rss",
+    title: "美股主要指数收高",
+    preserveTitle: true,
+    publishedAt: new Date().toISOString()
+  });
+  assert.equal(result, "美股主要指数收高");
+});
