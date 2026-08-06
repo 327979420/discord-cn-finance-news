@@ -53,8 +53,8 @@ jobs:
           echo "ready=$READY" >> "$GITHUB_OUTPUT"
           echo "dry_run=$DRY_RUN_INPUT" >> "$GITHUB_OUTPUT"
 
-      - name: Run checks for manual execution
-        if: steps.config.outputs.ready == 'true' && github.event_name == 'workflow_dispatch'
+      - name: Run checks
+        if: steps.config.outputs.ready == 'true'
         run: npm run check
 
       - name: Fetch, rank and broadcast news
