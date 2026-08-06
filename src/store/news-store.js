@@ -65,6 +65,10 @@ export class NewsStore {
   }
 
   close() {
-    this.database.close();
+    try {
+      this.database.exec("PRAGMA wal_checkpoint(TRUNCATE)");
+    } finally {
+      this.database.close();
+    }
   }
 }
