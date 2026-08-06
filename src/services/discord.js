@@ -6,8 +6,7 @@ export class DiscordPublisher {
   }
 
   async publish(item) {
-    const shouldIncludeUrl = this.options.includeSourceUrl || item.forceSourceUrl;
-    const content = shouldIncludeUrl && item.url ? `${item.message}\n${item.url}` : item.message;
+    const content = this.options.includeSourceUrl && item.url ? `${item.message}\n${item.url}` : item.message;
     if (this.options.dryRun) {
       console.log(`\n[DRY RUN] ${content}${item.imageUrl ? `\n图片：${item.imageUrl}` : ""}\n`);
       return;
@@ -18,7 +17,7 @@ export class DiscordPublisher {
       username: this.options.username,
       ...(this.options.avatarUrl ? { avatar_url: this.options.avatarUrl } : {}),
       allowed_mentions: { parse: [] },
-      ...(item.imageUrl ? { embeds: [{ ...(item.url ? { url: item.url } : {}), image: { url: item.imageUrl } }] } : {})
+      ...(item.imageUrl ? { embeds: [{ image: { url: item.imageUrl } }] } : {})
     };
     await this.executeWebhook(payload);
   }
