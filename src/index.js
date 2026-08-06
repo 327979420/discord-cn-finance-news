@@ -7,6 +7,7 @@ import { createLogger } from "./logger.js";
 import { runPipelineCycle } from "./pipeline.js";
 import { DiscordPublisher } from "./services/discord.js";
 import { Summarizer } from "./services/summarizer.js";
+import { ClsSource } from "./sources/cls-source.js";
 import { GdeltSource } from "./sources/gdelt-source.js";
 import { PolymarketSource } from "./sources/polymarket-source.js";
 import { RssSource } from "./sources/rss-source.js";
@@ -80,6 +81,7 @@ process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
 function createSources(sourcesConfig) {
   const result = [];
+  if (sourcesConfig.cls.enabled) result.push(new ClsSource(sourcesConfig.cls));
   for (const source of sourcesConfig.rss) {
     if (source.enabled) result.push(new RssSource(source));
   }
