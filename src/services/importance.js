@@ -50,6 +50,11 @@ const MAJOR_ENTITIES = [
   "伯克希尔", "摩根大通", "高盛", "花旗", "美国银行", "coinbase", "binance", "币安"
 ];
 
+const TECH_HIGH_SIGNAL = [
+  "人工智能模型", "ai模型", "基础模型", "芯片禁令", "出口限制", "网络攻击", "自主攻击",
+  "数据泄露", "重大故障", "服务中断", "反垄断调查", "监管处罚"
+];
+
 const CRYPTO_HIGH_SIGNAL = [
   "现货etf", "etf获批", "监管批准", "暂停提现", "停止提现", "交易所被盗", "协议被攻击",
   "稳定币脱锚", "清算", "爆仓", "黑客", "漏洞", "法院裁定", "sec", "美国证交会"
@@ -92,6 +97,7 @@ export function scoreImportance(item, options = {}) {
   score += add(text, MARKET_ASSETS, 15, reasons, "market");
   score += add(text, CORPORATE_ACTION, 14, reasons, "corporate");
   score += add(text, MAJOR_ENTITIES, 10, reasons, "major-entity");
+  score += add(text, TECH_HIGH_SIGNAL, 15, reasons, "tech-high-signal");
   score += add(text, CRYPTO_HIGH_SIGNAL, 20, reasons, "crypto-high-signal");
 
   const move = largestPercentageMove(text);
@@ -112,7 +118,7 @@ export function scoreImportance(item, options = {}) {
   }
 
   if (political && marketNexus) {
-    score += 5;
+    score += 22;
     reasons.push("market-moving-policy");
   }
 
@@ -168,7 +174,7 @@ export function selectImportantItems(items, options = {}) {
 }
 
 function isFinanciallyRelevant(text) {
-  return hasAny(text, [...MACRO, ...MARKET_ASSETS, ...CORPORATE_ACTION, ...MAJOR_ENTITIES, ...CRYPTO_HIGH_SIGNAL, ...MARKET_NEXUS]);
+  return hasAny(text, [...MACRO, ...MARKET_ASSETS, ...CORPORATE_ACTION, ...MAJOR_ENTITIES, ...TECH_HIGH_SIGNAL, ...CRYPTO_HIGH_SIGNAL, ...MARKET_NEXUS]);
 }
 
 function add(text, terms, points, reasons, reason) {
