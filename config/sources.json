@@ -1,12 +1,9 @@
 {
-  "rss": [
-    {
-      "name": "财联社电报",
-      "url": "https://rsshub.app/cls/telegraph",
-      "language": "zh",
-      "enabled": true
-    }
-  ],
+  "cls": {
+    "enabled": true,
+    "limit": 50
+  },
+  "rss": [],
   "polymarket": {
     "enabled": true,
     "limit": 30,
