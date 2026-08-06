@@ -67,7 +67,9 @@ jobs:
           CONFIG_PATH: config/sources.json
           DATABASE_PATH: .state/news.db
           MAX_NEWS_AGE_MINUTES: 45
-          MAX_ITEMS_PER_CYCLE: 8
+          MAX_ITEMS_PER_CYCLE: 5
+          MAX_CHINESE_CHARS: 72
+          INCLUDE_SOURCE_URL: false
           RUN_ONCE: true
           DRY_RUN: ${{ steps.config.outputs.dry_run }}
           NODE_NO_WARNINGS: 1
