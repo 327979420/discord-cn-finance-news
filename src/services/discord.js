@@ -6,7 +6,8 @@ export class DiscordPublisher {
   }
 
   async publish(item) {
-    const content = this.options.includeSourceUrl && item.url ? `${item.message}\n${item.url}` : item.message;
+    const shouldIncludeUrl = this.options.includeSourceUrl || item.forceSourceUrl;
+    const content = shouldIncludeUrl && item.url ? `${item.message}\n${item.url}` : item.message;
     if (this.options.dryRun) {
       console.log(`\n[DRY RUN] ${content}${item.imageUrl ? `\n图片：${item.imageUrl}` : ""}\n`);
       return;
