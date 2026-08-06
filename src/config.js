@@ -45,6 +45,8 @@ function readSources(filePath) {
         name: requiredString(source?.name, `rss[${index}].name`),
         url: requiredUrl(source?.url, `rss[${index}].url`),
         language: cleanOptional(source?.language),
+        preserveTitle: source?.preserveTitle === true,
+        forceSourceUrl: source?.forceSourceUrl === true,
         enabled: source?.enabled !== false
       }))
     : [];
