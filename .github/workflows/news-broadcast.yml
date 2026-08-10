@@ -59,6 +59,7 @@ jobs:
 
       - name: Fetch, rank and broadcast global radar
         if: steps.config.outputs.ready == 'true'
+        shell: bash
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -77,19 +78,24 @@ jobs:
           RUN_ONCE: true
           DRY_RUN: ${{ steps.config.outputs.dry_run }}
           NODE_NO_WARNINGS: 1
-        run: node src/index.js
+        run: |
+          mkdir -p .state
+          set -o pipefail
+          node src/index.js 2>&1 | tee .state/last-run.log
 
-      - name: Save deduplication and filtering state
+      - name: Save deduplication state and one-shot diagnostic log
         if: steps.config.outputs.ready == 'true' && success() && steps.config.outputs.dry_run != 'true'
         shell: bash
         run: |
-          if [[ ! -f .state/news.db ]]; then
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .state/news.db
+          if [[ -f .state/news.db ]]; then
+            git add .state/news.db
+          fi
+          if [[ "${{ github.event_name }}" == "push" && -f .state/last-run.log ]]; then
+            git add -f .state/last-run.log
+          fi
           if ! git diff --cached --quiet; then
-            git commit -m "Update finance news delivery state"
+            git commit -m "Update finance radar runtime state"
             git push
           fi
