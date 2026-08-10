@@ -33,6 +33,18 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: One-shot workflow heartbeat
+        if: github.event_name == 'push'
+        shell: bash
+        run: |
+          mkdir -p .state
+          date -u +"%Y-%m-%dT%H:%M:%SZ" > .state/workflow-heartbeat.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f .state/workflow-heartbeat.txt
+          git commit -m "Debug finance radar workflow heartbeat"
+          git push
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -89,6 +101,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git pull --rebase
           if [[ -f .state/news.db ]]; then
             git add .state/news.db
           fi
