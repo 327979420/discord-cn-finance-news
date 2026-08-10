@@ -139,12 +139,12 @@ export function scoreImportance(item, options = {}) {
   score += add(text, MAJOR_ENTITIES, 10, reasons, "major-entity");
   score += add(text, TECH_HIGH_SIGNAL, 15, reasons, "tech-high-signal");
   score += add(text, CRYPTO_HIGH_SIGNAL, 20, reasons, "crypto-high-signal");
-  score += add(text, PUBLIC_SAFETY, 16, reasons, "public-safety");
-  score += add(text, HUMANITARIAN_MAJOR, 24, reasons, "humanitarian-major");
-  score += add(text, POLITICAL_MAJOR, 25, reasons, "political-major");
+  score += add(text, PUBLIC_SAFETY, 24, reasons, "public-safety");
+  score += add(text, HUMANITARIAN_MAJOR, 34, reasons, "humanitarian-major");
+  score += add(text, POLITICAL_MAJOR, 35, reasons, "political-major");
 
   if (largeEarthquake(text)) {
-    score += 24;
+    score += 26;
     reasons.push("large-earthquake");
   }
 
@@ -265,10 +265,11 @@ function hasLargeMoneyFigure(text) {
 }
 
 function largeEarthquake(text) {
-  const matches = [...text.matchAll(/(?:magnitude\s*|震级\s*|规模\s*)(\d(?:\.\d)?)/gi)]
-    .map((match) => Number(match[1]))
-    .filter(Number.isFinite);
-  return matches.some((value) => value >= 6.5);
+  const values = [
+    ...[...text.matchAll(/(?:magnitude\s*|震级\s*|规模\s*)(\d(?:\.\d)?)/gi)].map((match) => Number(match[1])),
+    ...[...text.matchAll(/(\d(?:\.\d)?)\s*(?:级地震|-?magnitude\s+earthquake)/gi)].map((match) => Number(match[1]))
+  ].filter(Number.isFinite);
+  return values.some((value) => value >= 6.5);
 }
 
 function looksLikeQuestionOrFeature(title) {
