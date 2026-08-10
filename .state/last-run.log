@@ -1,8 +1,7 @@
-{"time":"2026-08-10T07:49:03.690Z","level":"error","message":"新闻源抓取失败","error":"TypeError: fetch failed"}
-{"time":"2026-08-10T07:49:03.690Z","level":"error","message":"新闻源抓取失败","error":"Error: RSS 请求失败：500 Internal Server Error"}
-{"time":"2026-08-10T07:49:03.690Z","level":"info","message":"新闻源抓取完成","source":"Yahoo股市国际财经","count":50}
-{"time":"2026-08-10T07:49:03.690Z","level":"error","message":"新闻源抓取失败","error":"Error: 全球行情探针全部失败：^GSPC ^GSPC 行情请求失败：429 Too Many Requests；^IXIC ^IXIC 行情请求失败：429 Too Many Requests；^DJI ^DJI 行情请求失败：429 Too Many Requests"}
-{"time":"2026-08-10T07:49:03.698Z","level":"info","message":"重要性筛选完成","eligible":4,"selected":2,"filteredJunk":0,"filteredLowImportance":2,"threshold":60}
-{"time":"2026-08-10T07:49:04.028Z","level":"info","message":"快讯：SK海力士砸54.3兆韓元擴產，KOSPI週一彈升0.65%、KOSDAQ飆6.97%。","source":"Yahoo股市国际财经","score":69}
-{"time":"2026-08-10T07:49:04.261Z","level":"info","message":"突发：Jefferies下砍特斯拉目標價12.5%，調降2026年度EBIT預測37%。","source":"Yahoo股市国际财经","score":85}
-{"time":"2026-08-10T07:49:04.261Z","level":"info","message":"本轮新闻处理完成","fetched":50,"eligible":4,"candidates":2,"sent":2,"duplicate":0,"skippedNoAi":0,"filteredJunk":0,"filteredLowImportance":2,"failedSources":3}
+{"time":"2026-08-10T07:57:59.048Z","level":"info","message":"新闻源抓取完成","source":"Yahoo股市国际财经","count":50}
+{"time":"2026-08-10T07:57:59.049Z","level":"info","message":"新闻源抓取完成","source":"BlockBeats快讯","count":15}
+{"time":"2026-08-10T07:57:59.049Z","level":"error","message":"新闻源抓取失败","error":"Error: 全球行情探针全部失败：^GSPC ^GSPC 行情请求失败：429 Too Many Requests；^IXIC ^IXIC 行情请求失败：429 Too Many Requests；^DJI ^DJI 行情请求失败：429 Too Many Requests"}
+{"time":"2026-08-10T07:57:59.068Z","level":"info","message":"重要性筛选完成","eligible":16,"selected":2,"filteredJunk":1,"filteredLowImportance":13,"threshold":60}
+{"time":"2026-08-10T07:57:59.367Z","level":"info","message":"突发：某巨鲸几近「包场」PLTR订单簿，2660万美元挂单相当该标的OI的78%。","source":"BlockBeats快讯","score":85}
+{"time":"2026-08-10T07:57:59.619Z","level":"info","message":"快讯：分析：比特币筹码集中度升至14.8%，波动风险正在累积。","source":"BlockBeats快讯","score":75}
+{"time":"2026-08-10T07:57:59.619Z","level":"info","message":"本轮新闻处理完成","fetched":65,"eligible":16,"candidates":2,"sent":2,"duplicate":0,"skippedNoAi":0,"filteredJunk":1,"filteredLowImportance":13,"failedSources":1}
