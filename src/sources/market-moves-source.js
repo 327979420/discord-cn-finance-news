@@ -14,13 +14,40 @@ export class MarketMovesSource {
 
   async fetch(context) {
     const output = [];
+    const failures = [];
+    let successfulProbes = 0;
+
     for (let start = 0; start < this.instruments.length; start += this.concurrency) {
       const chunk = this.instruments.slice(start, start + this.concurrency);
       const results = await Promise.allSettled(chunk.map((instrument) => this.fetchInstrument(instrument, context.timeoutMs)));
-      for (const result of results) {
-        if (result.status === "fulfilled" && result.value) output.push(result.value);
-      }
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          successfulProbes += 1;
+          if (result.value) output.push(result.value);
+          return;
+        }
+        failures.push({
+          symbol: chunk[index]?.symbol || "unknown",
+          error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+        });
+      });
     }
+
+    if (failures.length === this.instruments.length && this.instruments.length > 0) {
+      throw new Error(`全球行情探针全部失败：${failures.slice(0, 3).map((item) => `${item.symbol} ${item.error}`).join("；")}`);
+    }
+
+    console.log(JSON.stringify({
+      time: new Date().toISOString(),
+      level: failures.length ? "warn" : "info",
+      message: "全球行情探针完成",
+      probes: this.instruments.length,
+      successfulProbes,
+      failedProbes: failures.length,
+      alerts: output.length,
+      ...(failures.length ? { sampleFailures: failures.slice(0, 3) } : {})
+    }));
+
     return output;
   }
 
