@@ -1,7 +1,0 @@
-{"time":"2026-08-10T08:02:25.092Z","level":"info","message":"Yahoo公开行情雷达完成","pages":4,"failedPages":0,"configuredInstruments":26,"foundQuotes":20,"alerts":1}
-{"time":"2026-08-10T08:02:25.094Z","level":"info","message":"新闻源抓取完成","source":"Yahoo股市国际财经","count":50}
-{"time":"2026-08-10T08:02:25.094Z","level":"info","message":"新闻源抓取完成","source":"BlockBeats快讯","count":15}
-{"time":"2026-08-10T08:02:25.094Z","level":"info","message":"新闻源抓取完成","source":"全球市场异动","count":1}
-{"time":"2026-08-10T08:02:25.100Z","level":"info","message":"重要性筛选完成","eligible":2,"selected":1,"filteredJunk":0,"filteredLowImportance":1,"threshold":60}
-{"time":"2026-08-10T08:02:25.332Z","level":"info","message":"突发：日经225日内涨2.08%。","source":"全球指数异动","score":98}
-{"time":"2026-08-10T08:02:25.332Z","level":"info","message":"本轮新闻处理完成","fetched":66,"eligible":2,"candidates":1,"sent":1,"duplicate":0,"skippedNoAi":0,"filteredJunk":0,"filteredLowImportance":1,"failedSources":0}
