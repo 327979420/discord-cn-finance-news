@@ -16,7 +16,7 @@
       "language": "zh",
       "preserveTitle": true,
       "forceSourceUrl": false,
-      "enabled": false
+      "enabled": true
     }
   ],
   "marketMoves": {
