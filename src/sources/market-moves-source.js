@@ -1,5 +1,5 @@
 import { sha256 } from "../utils/hash.js";
-import { fetchWithTimeout } from "../utils/http.js";
+import { fetchWithTimeout, sleep } from "../utils/http.js";
 
 const YAHOO_CHART_BASE = "https://query1.finance.yahoo.com/v8/finance/chart";
 
@@ -9,7 +9,8 @@ export class MarketMovesSource {
     this.instruments = Array.isArray(options.instruments) ? options.instruments : [];
     this.interval = options.interval || "5m";
     this.range = options.range || "1d";
-    this.concurrency = options.concurrency || 5;
+    this.concurrency = options.concurrency || 1;
+    this.requestDelayMs = options.requestDelayMs || 900;
   }
 
   async fetch(context) {
@@ -17,20 +18,20 @@ export class MarketMovesSource {
     const failures = [];
     let successfulProbes = 0;
 
-    for (let start = 0; start < this.instruments.length; start += this.concurrency) {
-      const chunk = this.instruments.slice(start, start + this.concurrency);
-      const results = await Promise.allSettled(chunk.map((instrument) => this.fetchInstrument(instrument, context.timeoutMs)));
-      results.forEach((result, index) => {
-        if (result.status === "fulfilled") {
-          successfulProbes += 1;
-          if (result.value) output.push(result.value);
-          return;
-        }
+    // GitHub-hosted runners share public IPs. Probe sequentially to avoid Yahoo 429 bursts.
+    for (let index = 0; index < this.instruments.length; index += 1) {
+      const instrument = this.instruments[index];
+      try {
+        const item = await this.fetchInstrument(instrument, context.timeoutMs);
+        successfulProbes += 1;
+        if (item) output.push(item);
+      } catch (error) {
         failures.push({
-          symbol: chunk[index]?.symbol || "unknown",
-          error: result.reason instanceof Error ? result.reason.message : String(result.reason)
+          symbol: instrument?.symbol || "unknown",
+          error: error instanceof Error ? error.message : String(error)
         });
-      });
+      }
+      if (index < this.instruments.length - 1) await sleep(this.requestDelayMs);
     }
 
     if (failures.length === this.instruments.length && this.instruments.length > 0) {
