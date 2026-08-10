@@ -9,7 +9,8 @@ function item(title, extra = {}) {
     sourceKind: extra.sourceKind || "cls",
     title,
     description: extra.description || "",
-    publishedAt: extra.publishedAt || new Date().toISOString()
+    publishedAt: extra.publishedAt || new Date().toISOString(),
+    ...extra
   };
 }
 
@@ -31,16 +32,49 @@ test("keeps market-moving tariff policy", () => {
   assert.equal(result.shouldSend, true);
 });
 
+test("keeps genuinely major political events", () => {
+  const result = scoreImportance(item("某国宣布进入国家紧急状态，总统辞职"));
+  assert.equal(result.shouldSend, true);
+});
+
+test("keeps major public-health emergencies", () => {
+  const result = scoreImportance(item("世卫宣布新型传染病构成国际关注的突发公共卫生事件"));
+  assert.equal(result.shouldSend, true);
+  assert.equal(result.isBreaking, true);
+});
+
 test("filters feature articles and promotional content", () => {
   const result = scoreImportance(item("一文读懂本周最值得关注的十个加密项目"));
   assert.equal(result.shouldSend, false);
   assert.equal(result.reason, "junk");
 });
 
-test("filters irrelevant Polymarket politics", () => {
+test("filters irrelevant legacy Polymarket politics", () => {
   const result = scoreImportance(item("Will a presidential candidate visit France this year?", { sourceKind: "polymarket", source: "Polymarket" }));
   assert.equal(result.shouldSend, false);
   assert.equal(result.reason, "irrelevant-polymarket");
+});
+
+test("keeps a large Polymarket probability move", () => {
+  const result = scoreImportance(item("Will the Fed cut rates in September?", {
+    sourceKind: "polymarket_move",
+    source: "Polymarket",
+    description: "Polymarket概率1小时上升12.0个百分点，当前概率约68%",
+    polymarketChangePp: 12,
+    importanceHint: 80
+  }));
+  assert.equal(result.shouldSend, true);
+});
+
+test("keeps direct global market anomalies", () => {
+  const result = scoreImportance(item("纳斯达克综合指数过去30分钟跌1.2%", {
+    sourceKind: "market",
+    source: "全球指数异动",
+    marketMovePct: -1.2,
+    importanceHint: 84
+  }));
+  assert.equal(result.shouldSend, true);
+  assert.equal(result.isBreaking, true);
 });
 
 test("selects high-score items and caps each source", () => {
