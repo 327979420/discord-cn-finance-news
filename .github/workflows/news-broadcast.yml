@@ -13,7 +13,7 @@ on:
     paths:
       - ".github/workflows/news-broadcast.yml"
   schedule:
-    # Every 10 minutes. Broadcast runtime is independent from CI tests.
+    # Every 10 minutes. Public market pages and news feeds are screened each run.
     - cron: "3,13,23,33,43,53 * * * *"
 
 permissions:
