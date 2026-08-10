@@ -25,7 +25,13 @@ export class BlockBeatsSource {
 }
 
 export function parseBlockBeats(html, limit = 30, now = new Date()) {
-  const headings = [...String(html).matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)]
+  const raw = String(html);
+  // The page puts its main/important newsflash stream before the event calendar.
+  // Everything after that includes chain-whale monitoring and 24H recaps, which we do not want.
+  const cutoff = raw.indexOf("加密事件日历");
+  const mainStream = cutoff >= 0 ? raw.slice(0, cutoff) : raw;
+
+  const headings = [...mainStream.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)]
     .map((match) => stripHtml(match[1]))
     .map((text) => text.replace(/^\d{1,2}:\d{2}\s+/, "").trim())
     .filter(Boolean)
@@ -43,7 +49,5 @@ export function parseBlockBeats(html, limit = 30, now = new Date()) {
 }
 
 function isPageChrome(text) {
-  return [
-    "加密事件日历", "链上侦探持续监控", "24H重要资讯", "重要快讯", "热门文章"
-  ].some((label) => text === label || text.startsWith(label));
+  return ["重要快讯", "热门文章"].some((label) => text === label || text.startsWith(label));
 }
