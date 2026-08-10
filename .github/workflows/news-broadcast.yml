@@ -13,7 +13,7 @@ on:
     paths:
       - ".github/workflows/news-broadcast.yml"
   schedule:
-    # Keep 10-minute cadence while the repository is private; the radar itself now covers global market moves.
+    # 10-minute cadence while private; global indices, star stocks and major events are screened each run.
     - cron: "3,13,23,33,43,53 * * * *"
 
 permissions:
