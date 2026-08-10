@@ -1,0 +1,8 @@
+{"time":"2026-08-10T07:49:03.690Z","level":"error","message":"新闻源抓取失败","error":"TypeError: fetch failed"}
+{"time":"2026-08-10T07:49:03.690Z","level":"error","message":"新闻源抓取失败","error":"Error: RSS 请求失败：500 Internal Server Error"}
+{"time":"2026-08-10T07:49:03.690Z","level":"info","message":"新闻源抓取完成","source":"Yahoo股市国际财经","count":50}
+{"time":"2026-08-10T07:49:03.690Z","level":"error","message":"新闻源抓取失败","error":"Error: 全球行情探针全部失败：^GSPC ^GSPC 行情请求失败：429 Too Many Requests；^IXIC ^IXIC 行情请求失败：429 Too Many Requests；^DJI ^DJI 行情请求失败：429 Too Many Requests"}
+{"time":"2026-08-10T07:49:03.698Z","level":"info","message":"重要性筛选完成","eligible":4,"selected":2,"filteredJunk":0,"filteredLowImportance":2,"threshold":60}
+{"time":"2026-08-10T07:49:04.028Z","level":"info","message":"快讯：SK海力士砸54.3兆韓元擴產，KOSPI週一彈升0.65%、KOSDAQ飆6.97%。","source":"Yahoo股市国际财经","score":69}
+{"time":"2026-08-10T07:49:04.261Z","level":"info","message":"突发：Jefferies下砍特斯拉目標價12.5%，調降2026年度EBIT預測37%。","source":"Yahoo股市国际财经","score":85}
+{"time":"2026-08-10T07:49:04.261Z","level":"info","message":"本轮新闻处理完成","fetched":50,"eligible":4,"candidates":2,"sent":2,"duplicate":0,"skippedNoAi":0,"filteredJunk":0,"filteredLowImportance":2,"failedSources":3}
