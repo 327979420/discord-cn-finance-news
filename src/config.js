@@ -56,6 +56,11 @@ function readSources(filePath) {
         enabled: source?.enabled !== false
       }))
     : [];
+  const blockbeats = {
+    enabled: raw.blockbeats?.enabled === true,
+    url: requiredUrl(cleanOptional(raw.blockbeats?.url) || "https://www.theblockbeats.info/newsflash/", "blockbeats.url"),
+    limit: boundedNumber(raw.blockbeats?.limit, 30, 1, 100, "blockbeats.limit")
+  };
   const polymarket = {
     enabled: raw.polymarket?.enabled === true,
     limit: boundedNumber(raw.polymarket?.limit, 30, 1, 100, "polymarket.limit"),
@@ -72,7 +77,7 @@ function readSources(filePath) {
     enabled: raw.marketMoves?.enabled === true,
     range: cleanOptional(raw.marketMoves?.range) || "1d",
     interval: cleanOptional(raw.marketMoves?.interval) || "5m",
-    concurrency: boundedNumber(raw.marketMoves?.concurrency, 5, 1, 10, "marketMoves.concurrency"),
+    concurrency: boundedNumber(raw.marketMoves?.concurrency, 1, 1, 10, "marketMoves.concurrency"),
     instruments: Array.isArray(raw.marketMoves?.instruments)
       ? raw.marketMoves.instruments.map((instrument, index) => ({
           symbol: requiredString(instrument?.symbol, `marketMoves.instruments[${index}].symbol`),
@@ -85,7 +90,7 @@ function readSources(filePath) {
         }))
       : []
   };
-  return { cls, rss, polymarket, gdelt, marketMoves };
+  return { cls, rss, blockbeats, polymarket, gdelt, marketMoves };
 }
 
 function requiredString(value, label) {
