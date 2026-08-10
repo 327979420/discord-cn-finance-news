@@ -90,7 +90,9 @@ function createSources(config) {
   if (sourcesConfig.marketMoves.enabled && sourcesConfig.marketMoves.instruments.length) {
     result.push(new MarketMovesSource(sourcesConfig.marketMoves));
   }
-  if (sourcesConfig.polymarket.enabled) result.push(new PolymarketSource(sourcesConfig.polymarket));
+  if (sourcesConfig.polymarket.enabled && config.OPENAI_API_KEY) {
+    result.push(new PolymarketSource(sourcesConfig.polymarket));
+  }
   if (sourcesConfig.gdelt.enabled && sourcesConfig.gdelt.queries.length && config.OPENAI_API_KEY) {
     result.push(new GdeltSource(sourcesConfig.gdelt));
   }
