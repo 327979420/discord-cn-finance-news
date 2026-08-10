@@ -9,6 +9,7 @@ import { DiscordPublisher } from "./services/discord.js";
 import { Summarizer } from "./services/summarizer.js";
 import { ClsSource } from "./sources/cls-source.js";
 import { GdeltSource } from "./sources/gdelt-source.js";
+import { MarketMovesSource } from "./sources/market-moves-source.js";
 import { PolymarketSource } from "./sources/polymarket-source.js";
 import { RssSource } from "./sources/rss-source.js";
 import { NewsStore } from "./store/news-store.js";
@@ -16,7 +17,7 @@ import { NewsStore } from "./store/news-store.js";
 const logger = createLogger();
 const config = loadConfig();
 const store = new NewsStore(config.DATABASE_PATH);
-const sources = createSources(config.sources);
+const sources = createSources(config);
 const summarizer = new Summarizer({
   apiKey: config.OPENAI_API_KEY,
   model: config.OPENAI_MODEL,
@@ -79,14 +80,20 @@ async function shutdown(signal) {
 process.on("SIGINT", () => void shutdown("SIGINT"));
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
-function createSources(sourcesConfig) {
+function createSources(config) {
+  const sourcesConfig = config.sources;
   const result = [];
   if (sourcesConfig.cls.enabled) result.push(new ClsSource(sourcesConfig.cls));
   for (const source of sourcesConfig.rss) {
     if (source.enabled) result.push(new RssSource(source));
   }
+  if (sourcesConfig.marketMoves.enabled && sourcesConfig.marketMoves.instruments.length) {
+    result.push(new MarketMovesSource(sourcesConfig.marketMoves));
+  }
   if (sourcesConfig.polymarket.enabled) result.push(new PolymarketSource(sourcesConfig.polymarket));
-  if (sourcesConfig.gdelt.enabled && sourcesConfig.gdelt.queries.length) result.push(new GdeltSource(sourcesConfig.gdelt));
+  if (sourcesConfig.gdelt.enabled && sourcesConfig.gdelt.queries.length && config.OPENAI_API_KEY) {
+    result.push(new GdeltSource(sourcesConfig.gdelt));
+  }
   if (!result.length) throw new Error("config/sources.json 中没有启用任何新闻源");
   return result;
 }
