@@ -7,6 +7,7 @@ import { createLogger } from "./logger.js";
 import { runPipelineCycle } from "./pipeline.js";
 import { DiscordPublisher } from "./services/discord.js";
 import { Summarizer } from "./services/summarizer.js";
+import { BlockBeatsSource } from "./sources/blockbeats-source.js";
 import { ClsSource } from "./sources/cls-source.js";
 import { GdeltSource } from "./sources/gdelt-source.js";
 import { MarketMovesSource } from "./sources/market-moves-source.js";
@@ -87,6 +88,7 @@ function createSources(config) {
   for (const source of sourcesConfig.rss) {
     if (source.enabled) result.push(new RssSource(source));
   }
+  if (sourcesConfig.blockbeats.enabled) result.push(new BlockBeatsSource(sourcesConfig.blockbeats));
   if (sourcesConfig.marketMoves.enabled && sourcesConfig.marketMoves.instruments.length) {
     result.push(new MarketMovesSource(sourcesConfig.marketMoves));
   }
