@@ -112,16 +112,17 @@ export function scoreImportance(item, options = {}) {
   if (!text) return rejected(0, "empty");
   if (hasAny(text, HARD_JUNK)) return rejected(0, "junk");
 
+  // Preserve source-specific filtering semantics before generic political filtering.
+  if (item.sourceKind === "polymarket" && !isFinanciallyRelevant(text)) {
+    return rejected(10, "irrelevant-polymarket");
+  }
+
   const political = hasAny(text, POLITICS);
   const politicalMajor = hasAny(text, POLITICAL_MAJOR);
   const marketNexus = hasAny(text, MARKET_NEXUS);
   const publicSafety = hasAny(text, PUBLIC_SAFETY);
   if (political && !marketNexus && !politicalMajor && !publicSafety && item.sourceKind !== "polymarket_move") {
     return rejected(10, "generic-politics");
-  }
-
-  if (item.sourceKind === "polymarket" && !isFinanciallyRelevant(text)) {
-    return rejected(10, "irrelevant-polymarket");
   }
 
   let score = SOURCE_BASE[item.sourceKind] ?? 25;
