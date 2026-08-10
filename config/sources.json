@@ -1,6 +1,6 @@
 {
   "cls": {
-    "enabled": true,
+    "enabled": false,
     "limit": 50
   },
   "rss": [
@@ -8,7 +8,7 @@
       "name": "PANews快讯",
       "url": "https://www.panewslab.com/rss.xml?lang=zh-CN&type=NEWS",
       "language": "zh",
-      "enabled": true
+      "enabled": false
     },
     {
       "name": "Yahoo股市国际财经",
@@ -19,11 +19,16 @@
       "enabled": true
     }
   ],
+  "blockbeats": {
+    "enabled": true,
+    "url": "https://www.theblockbeats.info/newsflash/",
+    "limit": 30
+  },
   "marketMoves": {
     "enabled": true,
     "range": "1d",
     "interval": "5m",
-    "concurrency": 5,
+    "concurrency": 1,
     "instruments": [
       { "symbol": "^GSPC", "name": "标普500", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
       { "symbol": "^IXIC", "name": "纳斯达克综合指数", "group": "index", "type": "index", "dayThreshold": 1.8, "suddenThreshold": 0.9, "suddenMinutes": 30 },
@@ -35,7 +40,6 @@
       { "symbol": "^FTSE", "name": "英国FTSE100", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
       { "symbol": "^FCHI", "name": "法国CAC40", "group": "index", "type": "index", "dayThreshold": 1.8, "suddenThreshold": 0.9, "suddenMinutes": 30 },
       { "symbol": "^AXJO", "name": "澳洲ASX200", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
-
       { "symbol": "NVDA", "name": "英伟达", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
       { "symbol": "TSLA", "name": "特斯拉", "group": "stock", "type": "stock", "dayThreshold": 5.0, "suddenThreshold": 3.0, "suddenMinutes": 30 },
       { "symbol": "META", "name": "Meta", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
@@ -47,7 +51,6 @@
       { "symbol": "COIN", "name": "Coinbase", "group": "stock", "type": "stock", "dayThreshold": 7.0, "suddenThreshold": 4.0, "suddenMinutes": 30 },
       { "symbol": "MSTR", "name": "Strategy", "group": "stock", "type": "stock", "dayThreshold": 7.0, "suddenThreshold": 4.0, "suddenMinutes": 30 },
       { "symbol": "ORCL", "name": "甲骨文", "group": "stock", "type": "stock", "dayThreshold": 5.0, "suddenThreshold": 3.0, "suddenMinutes": 30 },
-
       { "symbol": "GC=F", "name": "黄金", "group": "cross-asset", "type": "commodity", "dayThreshold": 2.0, "suddenThreshold": 1.0, "suddenMinutes": 30 },
       { "symbol": "CL=F", "name": "WTI原油", "group": "cross-asset", "type": "commodity", "dayThreshold": 3.5, "suddenThreshold": 2.0, "suddenMinutes": 30 },
       { "symbol": "DX-Y.NYB", "name": "美元指数", "group": "cross-asset", "type": "fx", "dayThreshold": 1.0, "suddenThreshold": 0.5, "suddenMinutes": 30 },
