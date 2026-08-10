@@ -59,14 +59,33 @@ function readSources(filePath) {
   const polymarket = {
     enabled: raw.polymarket?.enabled === true,
     limit: boundedNumber(raw.polymarket?.limit, 30, 1, 100, "polymarket.limit"),
-    minVolume: boundedNumber(raw.polymarket?.minVolume, 0, 0, Number.MAX_SAFE_INTEGER, "polymarket.minVolume")
+    minVolume: boundedNumber(raw.polymarket?.minVolume, 0, 0, Number.MAX_SAFE_INTEGER, "polymarket.minVolume"),
+    minHourPriceChange: boundedNumber(raw.polymarket?.minHourPriceChange, 0.08, 0, 1, "polymarket.minHourPriceChange"),
+    minDayPriceChange: boundedNumber(raw.polymarket?.minDayPriceChange, 0.15, 0, 1, "polymarket.minDayPriceChange")
   };
   const gdelt = {
     enabled: raw.gdelt?.enabled === true,
     maxRecordsPerQuery: boundedNumber(raw.gdelt?.maxRecordsPerQuery, 15, 1, 250, "gdelt.maxRecordsPerQuery"),
     queries: Array.isArray(raw.gdelt?.queries) ? raw.gdelt.queries.map(String).map((value) => value.trim()).filter(Boolean) : []
   };
-  return { cls, rss, polymarket, gdelt };
+  const marketMoves = {
+    enabled: raw.marketMoves?.enabled === true,
+    range: cleanOptional(raw.marketMoves?.range) || "1d",
+    interval: cleanOptional(raw.marketMoves?.interval) || "5m",
+    concurrency: boundedNumber(raw.marketMoves?.concurrency, 5, 1, 10, "marketMoves.concurrency"),
+    instruments: Array.isArray(raw.marketMoves?.instruments)
+      ? raw.marketMoves.instruments.map((instrument, index) => ({
+          symbol: requiredString(instrument?.symbol, `marketMoves.instruments[${index}].symbol`),
+          name: requiredString(instrument?.name, `marketMoves.instruments[${index}].name`),
+          group: cleanOptional(instrument?.group) || "index",
+          type: cleanOptional(instrument?.type) || "index",
+          dayThreshold: boundedNumber(instrument?.dayThreshold, 2, 0.1, 100, `marketMoves.instruments[${index}].dayThreshold`),
+          suddenThreshold: boundedNumber(instrument?.suddenThreshold, 1, 0.1, 100, `marketMoves.instruments[${index}].suddenThreshold`),
+          suddenMinutes: boundedNumber(instrument?.suddenMinutes, 30, 5, 240, `marketMoves.instruments[${index}].suddenMinutes`)
+        }))
+      : []
+  };
+  return { cls, rss, polymarket, gdelt, marketMoves };
 }
 
 function requiredString(value, label) {
