@@ -15,6 +15,10 @@ export class Summarizer {
     const title = cleanNewsText(item.title);
     const description = cleanNewsText(item.description);
 
+    if (item.preserveTitle) {
+      return formatPreservedTitle(prefix, title);
+    }
+
     if (item.sourceKind === "market") {
       return formatMessage(prefix, title, this.maxChineseChars);
     }
@@ -102,4 +106,11 @@ function formatMessage(prefix, body, maxChars) {
   const shortened = truncateChineseStyle(cleaned, maxChars);
   const punctuation = /[。！？!?]$/.test(shortened) ? "" : "。";
   return `${prefix}：${shortened}${punctuation}`;
+}
+
+function formatPreservedTitle(prefix, title) {
+  const cleaned = String(title || "").replace(/\s+/g, " ").trim();
+  if (!cleaned) return undefined;
+  const punctuation = /[。！？!?]$/.test(cleaned) ? "" : "。";
+  return `${prefix}：${cleaned}${punctuation}`;
 }
