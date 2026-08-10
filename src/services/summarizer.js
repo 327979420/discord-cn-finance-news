@@ -15,7 +15,12 @@ export class Summarizer {
     const title = cleanNewsText(item.title);
     const description = cleanNewsText(item.description);
 
+    if (item.sourceKind === "market") {
+      return formatMessage(prefix, title, this.maxChineseChars);
+    }
+
     if (!this.apiKey) {
+      if (item.sourceKind === "polymarket" || item.sourceKind === "polymarket_move") return undefined;
       const body = selectUsefulText(title, description, this.maxChineseChars);
       if (!containsChinese(body)) return undefined;
       return formatMessage(prefix, body, this.maxChineseChars);
@@ -35,14 +40,14 @@ export class Summarizer {
             role: "system",
             content: [{
               type: "input_text",
-              text: "你是中文金融快讯编辑。只提取一条最有用、最能影响市场决策的事实，写成一句自然、简洁、可独立阅读的中文短讯。删除背景铺垫、媒体署名、重复信息和空泛评价。不得补充原文没有的事实，不做投资建议，不写市场影响，不写来源，不放链接，不用Markdown，不换行。保留关键数字、公司、人名和政策动作。"
+              text: "你是中文全球市场快讯编辑。只提取一条最有用、最能影响投资者决策或公共安全判断的事实，写成一句自然、简洁、可独立阅读的中文短讯。删除背景铺垫、媒体署名、重复信息和空泛评价。不得补充原文没有的事实，不做投资建议，不写市场影响，不写来源，不放链接，不用Markdown，不换行。保留关键数字、公司、人名、政策动作和事件地点。对于Polymarket，必须把问题本身翻译成中文，并保留概率变化。"
             }]
           },
           {
             role: "user",
             content: [{
               type: "input_text",
-              text: `要求：正文最多${this.maxChineseChars}个中文字符左右；只写一个事实；不要添加“突发”或“快讯”前缀。\n重要性分数：${item.importanceScore ?? "未提供"}/100\n来源类型：${item.sourceKind}\n标题：${title}\n摘要：${description}`
+              text: `要求：正文最多${this.maxChineseChars}个中文字符左右；只写一个事实；不要添加“突发”“快讯”或“Polymarket异动”前缀。\n重要性分数：${item.importanceScore ?? "未提供"}/100\n来源类型：${item.sourceKind}\n标题：${title}\n摘要：${description}`
             }]
           }
         ]
@@ -92,7 +97,7 @@ function firstSentence(text) {
 
 function formatMessage(prefix, body, maxChars) {
   const cleaned = cleanNewsText(body)
-    .replace(/^(突发|快讯|新Polymarket)[：:，,\s]*/i, "")
+    .replace(/^(突发|快讯|新Polymarket|Polymarket异动)[：:，,\s]*/i, "")
     .trim();
   const shortened = truncateChineseStyle(cleaned, maxChars);
   const punctuation = /[。！？!?]$/.test(shortened) ? "" : "。";
