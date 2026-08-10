@@ -13,7 +13,7 @@ on:
     paths:
       - ".github/workflows/news-broadcast.yml"
   schedule:
-    # Every 10 minutes; only sufficiently important alerts are sent.
+    # Keep 10-minute cadence while the repository is private; the radar itself now covers global market moves.
     - cron: "3,13,23,33,43,53 * * * *"
 
 permissions:
@@ -57,7 +57,7 @@ jobs:
         if: steps.config.outputs.ready == 'true'
         run: npm run check
 
-      - name: Fetch, rank and broadcast news
+      - name: Fetch, rank and broadcast global radar
         if: steps.config.outputs.ready == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -67,12 +67,13 @@ jobs:
           CONFIG_PATH: config/sources.json
           DATABASE_PATH: .state/news.db
           MAX_NEWS_AGE_MINUTES: 45
-          MAX_ITEMS_PER_CYCLE: 4
+          MAX_ITEMS_PER_CYCLE: 6
           MAX_ITEMS_PER_SOURCE: 2
           MIN_IMPORTANCE_SCORE: 60
           BREAKING_IMPORTANCE_SCORE: 82
           MAX_CHINESE_CHARS: 72
           INCLUDE_SOURCE_URL: false
+          REQUEST_TIMEOUT_MS: 25000
           RUN_ONCE: true
           DRY_RUN: ${{ steps.config.outputs.dry_run }}
           NODE_NO_WARNINGS: 1
