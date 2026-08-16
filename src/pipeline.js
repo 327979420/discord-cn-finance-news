@@ -1,5 +1,5 @@
 import { sha256 } from "./utils/hash.js";
-import { matchesKeywordRules, normalizeForHash } from "./utils/text.js";
+import { matchesKeywordRules, normalizeForHash, normalizeNewsFingerprint } from "./utils/text.js";
 import { selectImportantItems } from "./services/importance.js";
 
 export async function runPipelineCycle(deps) {
@@ -22,7 +22,8 @@ export async function runPipelineCycle(deps) {
   const eligible = items
     .filter((item) => {
       const publishedAt = new Date(item.publishedAt).getTime();
-      return Number.isFinite(publishedAt) && now - publishedAt <= maxAgeMs && publishedAt <= now + 300000;
+      const reliableTimestamp = item.sourceKind === "market" || item.sourceKind === "polymarket_move" || item.timestampReliable !== false;
+      return reliableTimestamp && Number.isFinite(publishedAt) && now - publishedAt <= maxAgeMs && publishedAt <= now + 300000;
     })
     .filter((item) => matchesKeywordRules(item.title, item.description, config.includeKeywords, config.excludeKeywords))
     .filter((item) => !store.isProcessed(item.id));
@@ -55,8 +56,11 @@ export async function runPipelineCycle(deps) {
   let duplicate = 0;
   let skippedNoAi = 0;
   for (const item of candidates) {
-    const contentHash = sha256(normalizeForHash(`${item.title} ${item.description || ""}`));
-    if (store.hasContentHash(contentHash)) {
+    const contentHash = sha256(normalizeNewsFingerprint(item.title));
+    const similarSent = item.sourceKind === "market" ? undefined : store.findSimilarSent(item.title, {
+      hours: config.SIMILAR_NEWS_WINDOW_HOURS
+    });
+    if (store.hasContentHash(contentHash) || similarSent) {
       store.markProcessed(item, "duplicate");
       duplicate += 1;
       continue;
@@ -74,9 +78,14 @@ export async function runPipelineCycle(deps) {
         duplicate += 1;
         continue;
       }
-      await publisher.publish({ ...item, message });
+      const attachImage = store.shouldAttachImage(item, {
+        interval: config.IMAGE_EVERY_N_MESSAGES,
+        minScore: config.IMAGE_MIN_IMPORTANCE_SCORE
+      });
+      const publishedItem = { ...item, message, imageUrl: attachImage ? item.imageUrl : undefined };
+      await publisher.publish(publishedItem);
       if (config.DRY_RUN) store.markProcessed(item, "dry-run");
-      else store.recordSent(item, contentHash, messageHash);
+      else store.recordSent(publishedItem, contentHash, messageHash);
       sent += 1;
       logger.info({ source: item.source, score: item.importanceScore, message }, config.DRY_RUN ? "本地预览完成" : "已推送至 Discord");
     } catch (error) {

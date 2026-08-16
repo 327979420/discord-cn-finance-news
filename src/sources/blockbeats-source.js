@@ -33,19 +33,35 @@ export function parseBlockBeats(html, limit = 30, now = new Date()) {
 
   const headings = [...mainStream.matchAll(/<h2\b[^>]*>([\s\S]*?)<\/h2>/gi)]
     .map((match) => stripHtml(match[1]))
-    .map((text) => text.replace(/^\d{1,2}:\d{2}\s+/, "").trim())
-    .filter(Boolean)
-    .filter((text) => !isPageChrome(text));
+    .map((text) => {
+      const time = text.match(/^(\d{1,2}):(\d{2})\s+/);
+      return { title: text.replace(/^\d{1,2}:\d{2}\s+/, "").trim(), time };
+    })
+    .filter(({ title }) => title && !isPageChrome(title));
 
-  const unique = [...new Set(headings)].slice(0, limit);
-  return unique.map((title) => ({
+  const unique = [...new Map(headings.map((entry) => [entry.title, entry])).values()].slice(0, limit);
+  return unique.map(({ title, time }) => ({
     id: `blockbeats:${sha256(title)}`,
     source: "BlockBeats快讯",
     sourceKind: "rss",
     title,
-    publishedAt: now.toISOString(),
+    publishedAt: time ? blockBeatsTimeToIso(time, now) : now.toISOString(),
+    timestampReliable: Boolean(time),
     language: "zh"
   }));
+}
+
+function blockBeatsTimeToIso(match, now) {
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  });
+  const parts = Object.fromEntries(formatter.formatToParts(now).map((part) => [part.type, part.value]));
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  let inferred = new Date(`${parts.year}-${parts.month}-${parts.day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+08:00`);
+  if (inferred.getTime() - now.getTime() > 2 * 60 * 60 * 1000) inferred = new Date(inferred.getTime() - 86400000);
+  return inferred.toISOString();
 }
 
 function isPageChrome(text) {

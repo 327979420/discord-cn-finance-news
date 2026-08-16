@@ -20,3 +20,14 @@ test("store marks duplicate without sent record", () => {
   assert.deepEqual(store.stats(), { processed: 1, sent: 0 });
   store.close();
 });
+
+test("store finds semantic duplicates and rate-limits images", () => {
+  const store = new NewsStore(":memory:");
+  store.recordSent({ ...item, title: "美联储宣布降息25个基点" }, "hash-0", "message-0");
+  assert.ok(store.findSimilarSent("快讯：美联储宣布降息25个基点"));
+  const illustrated = { ...item, importanceScore: 90, imageUrl: "https://example.com/news.jpg" };
+  assert.equal(store.shouldAttachImage(illustrated, { interval: 3, minScore: 82 }), false);
+  store.recordSent({ ...item, id: "2" }, "hash-1", "message-1");
+  assert.equal(store.shouldAttachImage(illustrated, { interval: 3, minScore: 82 }), true);
+  store.close();
+});
