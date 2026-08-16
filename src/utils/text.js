@@ -30,6 +30,37 @@ export function normalizeForHash(input) {
   return input.normalize("NFKC").toLowerCase().replace(/[\p{P}\p{S}\s]+/gu, "").trim();
 }
 
+export function normalizeNewsFingerprint(input) {
+  return normalizeForHash(String(input || "")
+    .replace(/^(?:突发|快讯|独家|更新|最新)[：:\s-]*/i, "")
+    .replace(/^(?:【[^】]{1,24}】|\[[^\]]{1,24}\])\s*/g, "")
+    .replace(/(?:据|来自)(?:路透|彭博|美联社|财联社|律动|blockbeats)[：:\s，,]*/gi, "")
+    .replace(/\b(?:breaking|update|exclusive)\b/gi, ""));
+}
+
+export function newsTextSimilarity(left, right) {
+  const a = normalizeNewsFingerprint(left);
+  const b = normalizeNewsFingerprint(right);
+  if (!a || !b) return 0;
+  if (a === b || a.includes(b) || b.includes(a)) {
+    return Math.min(a.length, b.length) / Math.max(a.length, b.length) >= 0.62 ? 1 : 0;
+  }
+  const aGrams = characterNgrams(a, 2);
+  const bGrams = characterNgrams(b, 2);
+  let intersection = 0;
+  for (const gram of aGrams) if (bGrams.has(gram)) intersection += 1;
+  const union = aGrams.size + bGrams.size - intersection;
+  return union ? intersection / union : 0;
+}
+
+function characterNgrams(value, size) {
+  const chars = [...value];
+  if (chars.length <= size) return new Set([value]);
+  const result = new Set();
+  for (let index = 0; index <= chars.length - size; index += 1) result.add(chars.slice(index, index + size).join(""));
+  return result;
+}
+
 export function truncateChineseStyle(input, maxChars) {
   const text = input.replace(/\s+/g, " ").trim();
   if ([...text].length <= maxChars) return text;

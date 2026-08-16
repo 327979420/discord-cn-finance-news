@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { containsChinese, matchesKeywordRules, normalizeForHash, parseGdeltDate, stripHtml, truncateChineseStyle } from "../src/utils/text.js";
+import { containsChinese, matchesKeywordRules, newsTextSimilarity, normalizeForHash, parseGdeltDate, stripHtml, truncateChineseStyle } from "../src/utils/text.js";
 
 test("text helpers", () => {
   assert.equal(stripHtml("<p>美联储&nbsp;维持 <b>利率</b></p>"), "美联储 维持 利率");
@@ -11,4 +11,9 @@ test("text helpers", () => {
   assert.equal(matchesKeywordRules("英伟达发布财报", undefined, ["英伟达"], ["广告"]), true);
   assert.equal(matchesKeywordRules("英伟达广告", undefined, ["英伟达"], ["广告"]), false);
   assert.equal(parseGdeltDate("20260806T031500Z"), "2026-08-06T03:15:00.000Z");
+});
+
+test("detects near-duplicate headlines across sources", () => {
+  assert.ok(newsTextSimilarity("突发：美联储宣布9月降息25个基点", "美联储宣布九月降息25个基点") >= 0.72);
+  assert.ok(newsTextSimilarity("英伟达发布新一代AI芯片", "日本央行维持利率不变") < 0.4);
 });

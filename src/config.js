@@ -25,6 +25,9 @@ export function loadConfig() {
     DEFAULT_PREFIX: process.env.DEFAULT_PREFIX || "快讯",
     INCLUDE_SOURCE_URL: boolean("INCLUDE_SOURCE_URL", false),
     MAX_CHINESE_CHARS: integer("MAX_CHINESE_CHARS", 110, 30, 500),
+    IMAGE_EVERY_N_MESSAGES: integer("IMAGE_EVERY_N_MESSAGES", 10, 1, 100),
+    IMAGE_MIN_IMPORTANCE_SCORE: integer("IMAGE_MIN_IMPORTANCE_SCORE", 82, 0, 100),
+    SIMILAR_NEWS_WINDOW_HOURS: integer("SIMILAR_NEWS_WINDOW_HOURS", 36, 1, 168),
     includeKeywords: splitKeywords(process.env.INCLUDE_KEYWORDS || ""),
     excludeKeywords: splitKeywords(process.env.EXCLUDE_KEYWORDS || "广告,促销,优惠券"),
     sources

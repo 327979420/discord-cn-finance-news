@@ -10,6 +10,13 @@ test("parses RSS items and images", () => {
   assert.equal(items[0].description, "声明强调通胀风险。");
   assert.equal(items[0].imageUrl, "https://example.com/a.jpg");
   assert.equal(items[0].url, "https://example.com/a");
+  assert.equal(items[0].timestampReliable, true);
+});
+
+test("marks missing publication dates as unreliable", () => {
+  const xml = `<?xml version="1.0"?><rss><channel><item><title>没有时间的旧闻</title><guid>old-1</guid></item></channel></rss>`;
+  const [item] = parseFeed(xml, { name: "测试源", language: "zh" });
+  assert.equal(item.timestampReliable, false);
 });
 
 test("passes source-specific display rules into RSS items", () => {

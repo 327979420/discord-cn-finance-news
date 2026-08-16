@@ -45,6 +45,7 @@ function parseItem(block, source, isAtom) {
     attribute(block, "media:thumbnail", "url"),
     extractFirstImageUrl(descriptionRaw)
   );
+  const hasReliablePublishedAt = Boolean(date && Number.isFinite(new Date(decodeXml(date)).getTime()));
   const publishedAt = safeIsoDate(decodeXml(date));
   const stableId = decodeXml(guid || url || `${title}:${publishedAt}`);
   return {
@@ -56,6 +57,7 @@ function parseItem(block, source, isAtom) {
     ...(url ? { url: decodeXml(url).trim() } : {}),
     ...(imageUrl ? { imageUrl: decodeXml(imageUrl).trim() } : {}),
     publishedAt,
+    timestampReliable: hasReliablePublishedAt,
     ...(source.language ? { language: source.language } : {}),
     ...(source.preserveTitle ? { preserveTitle: true } : {}),
     ...(source.forceSourceUrl ? { forceSourceUrl: true } : {})
