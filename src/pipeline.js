@@ -4,16 +4,22 @@ import { selectImportantItems } from "./services/importance.js";
 
 export async function runPipelineCycle(deps) {
   const { config, sources, store, summarizer, publisher, logger } = deps;
-  const fetchResults = await Promise.allSettled(sources.map(async (source) => ({ source: source.name, items: await source.fetch({ timeoutMs: config.REQUEST_TIMEOUT_MS }) })));
+  const fetchResults = await Promise.all(sources.map(async (source) => {
+    try {
+      return { ok: true, source: source.name, items: await source.fetch({ timeoutMs: config.REQUEST_TIMEOUT_MS }) };
+    } catch (error) {
+      return { ok: false, source: source.name, error };
+    }
+  }));
   const items = [];
   let failedSources = 0;
   for (const result of fetchResults) {
-    if (result.status === "fulfilled") {
-      logger.info({ source: result.value.source, count: result.value.items.length }, "新闻源抓取完成");
-      items.push(...result.value.items);
+    if (result.ok) {
+      logger.info({ source: result.source, count: result.items.length }, "新闻源抓取完成");
+      items.push(...result.items);
     } else {
       failedSources += 1;
-      logger.error({ error: errorToString(result.reason) }, "新闻源抓取失败");
+      logger.error({ source: result.source, error: errorToString(result.error) }, "新闻源抓取失败");
     }
   }
 
@@ -55,6 +61,8 @@ export async function runPipelineCycle(deps) {
   let sent = 0;
   let duplicate = 0;
   let skippedNoAi = 0;
+  let attemptedDeliveries = 0;
+  let failedDeliveries = 0;
   for (const item of candidates) {
     const contentHash = sha256(normalizeNewsFingerprint(item.title));
     const similarSent = item.sourceKind === "market" ? undefined : store.findSimilarSent(item.title, {
@@ -83,12 +91,14 @@ export async function runPipelineCycle(deps) {
         minScore: config.IMAGE_MIN_IMPORTANCE_SCORE
       });
       const publishedItem = { ...item, message, imageUrl: attachImage ? item.imageUrl : undefined };
+      attemptedDeliveries += 1;
       await publisher.publish(publishedItem);
       if (config.DRY_RUN) store.markProcessed(item, "dry-run");
       else store.recordSent(publishedItem, contentHash, messageHash);
       sent += 1;
       logger.info({ source: item.source, score: item.importanceScore, message }, config.DRY_RUN ? "本地预览完成" : "已推送至 Discord");
     } catch (error) {
+      failedDeliveries += 1;
       logger.error({ source: item.source, title: item.title, score: item.importanceScore, error: errorToString(error) }, "处理新闻失败，将在下轮重试");
     }
   }
@@ -99,6 +109,8 @@ export async function runPipelineCycle(deps) {
     sent,
     duplicate,
     skippedNoAi,
+    attemptedDeliveries,
+    failedDeliveries,
     filteredJunk,
     filteredLowImportance,
     failedSources

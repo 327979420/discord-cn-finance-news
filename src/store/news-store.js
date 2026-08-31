@@ -89,6 +89,14 @@ export class NewsStore {
     return { processed, sent };
   }
 
+  prune(options = {}) {
+    const processedCutoff = new Date(Date.now() - (options.processedDays ?? 30) * 86400000).toISOString();
+    const sentCutoff = new Date(Date.now() - (options.sentDays ?? 180) * 86400000).toISOString();
+    const processed = this.database.prepare("DELETE FROM processed_items WHERE processed_at < ?").run(processedCutoff).changes;
+    const sent = this.database.prepare("DELETE FROM sent_messages WHERE sent_at < ?").run(sentCutoff).changes;
+    return { processed, sent };
+  }
+
   close() {
     try {
       this.database.exec("PRAGMA wal_checkpoint(TRUNCATE)");

@@ -11,6 +11,11 @@ export class GdeltSource {
 
   async fetch(context) {
     const results = await Promise.allSettled(this.queries.map((query) => this.fetchQuery(query, context.timeoutMs)));
+    const failures = results.filter((result) => result.status === "rejected");
+    if (failures.length === results.length && results.length) {
+      const reasons = failures.map((result) => result.reason instanceof Error ? result.reason.message : String(result.reason));
+      throw new Error(`GDELT 所有查询均失败：${reasons.join("；")}`);
+    }
     return results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
   }
 

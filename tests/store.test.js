@@ -31,3 +31,17 @@ test("store finds semantic duplicates and rate-limits images", () => {
   assert.equal(store.shouldAttachImage(illustrated, { interval: 3, minScore: 82 }), true);
   store.close();
 });
+
+test("store prunes expired state while preserving recent records", () => {
+  const store = new NewsStore(":memory:");
+  store.database.prepare("INSERT INTO processed_items VALUES (?, ?, ?, ?)")
+    .run("old", "source", "filtered", "2020-01-01T00:00:00.000Z");
+  store.markProcessed({ id: "recent", source: "source" }, "filtered");
+
+  const result = store.prune({ processedDays: 30, sentDays: 180 });
+
+  assert.equal(result.processed, 1);
+  assert.equal(store.isProcessed("old"), false);
+  assert.equal(store.isProcessed("recent"), true);
+  store.close();
+});

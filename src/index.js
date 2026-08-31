@@ -18,6 +18,8 @@ import { NewsStore } from "./store/news-store.js";
 const logger = createLogger();
 const config = loadConfig();
 const store = new NewsStore(config.DATABASE_PATH);
+const pruned = store.prune();
+if (pruned.processed || pruned.sent) logger.info(pruned, "已清理过期去重状态");
 const sources = createSources(config);
 const summarizer = new Summarizer({
   apiKey: config.OPENAI_API_KEY,
@@ -40,7 +42,7 @@ let running = false;
 let shuttingDown = false;
 
 async function cycle() {
-  if (running || shuttingDown) return;
+  if (running || shuttingDown) return undefined;
   running = true;
   try {
     const result = await runPipelineCycle({ config, sources, store, summarizer, publisher, logger });
@@ -49,37 +51,41 @@ async function cycle() {
     healthState.lastCycleResult = result;
     delete healthState.lastError;
     logger.info(result, "本轮新闻处理完成");
+    return result;
   } catch (error) {
     healthState.lastCycleAt = new Date().toISOString();
     healthState.lastCycleOk = false;
     healthState.lastError = error instanceof Error ? error.message : String(error);
     logger.error({ error: healthState.lastError }, "本轮处理异常");
+    return undefined;
   } finally {
     running = false;
   }
 }
 
-await cycle();
+const firstResult = await cycle();
 if (config.RUN_ONCE) {
   store.close();
-  process.exit(0);
-}
+  const allSourcesFailed = firstResult?.failedSources === sources.length;
+  const allDeliveriesFailed = firstResult && firstResult.attemptedDeliveries > 0
+    && firstResult.failedDeliveries === firstResult.attemptedDeliveries;
+  if (!firstResult || allSourcesFailed || allDeliveriesFailed) process.exitCode = 1;
+} else {
+  const timer = setInterval(() => void cycle(), config.POLL_INTERVAL_SECONDS * 1000);
+  logger.info({ sourceCount: sources.length, intervalSeconds: config.POLL_INTERVAL_SECONDS, dryRun: config.DRY_RUN, health: `http://localhost:${config.PORT}/healthz` }, "中文金融快讯服务已启动");
 
-const timer = setInterval(() => void cycle(), config.POLL_INTERVAL_SECONDS * 1000);
-logger.info({ sourceCount: sources.length, intervalSeconds: config.POLL_INTERVAL_SECONDS, dryRun: config.DRY_RUN, health: `http://localhost:${config.PORT}/healthz` }, "中文金融快讯服务已启动");
-
-async function shutdown(signal) {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  logger.info({ signal }, "正在关闭服务");
-  clearInterval(timer);
-  healthServer?.close();
-  while (running) await new Promise((resolve) => setTimeout(resolve, 100));
-  store.close();
-  process.exit(0);
+  async function shutdown(signal) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    logger.info({ signal }, "正在关闭服务");
+    clearInterval(timer);
+    healthServer?.close();
+    while (running) await new Promise((resolve) => setTimeout(resolve, 100));
+    store.close();
+  }
+  process.on("SIGINT", () => void shutdown("SIGINT"));
+  process.on("SIGTERM", () => void shutdown("SIGTERM"));
 }
-process.on("SIGINT", () => void shutdown("SIGINT"));
-process.on("SIGTERM", () => void shutdown("SIGTERM"));
 
 function createSources(config) {
   const sourcesConfig = config.sources;

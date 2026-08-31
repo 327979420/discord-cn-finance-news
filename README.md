@@ -6,8 +6,11 @@
 
 ## 当前支持
 
-- 财联社电报等任意 RSS / RSSHub Feed
-- Polymarket 新事件
+- Yahoo 台湾国际财经 RSS
+- BlockBeats 中文快讯
+- Yahoo 公开页面的全球指数、明星股和跨资产异动
+- 财联社电报等任意 RSS / RSSHub Feed（可选）
+- Polymarket 概率异动（需要 OpenAI API Key）
 - GDELT 国际新闻关键词搜索
 - OpenAI 中文翻译与压缩
 - Discord Incoming Webhook
@@ -125,7 +128,7 @@ Polymarket 原文通常是英文，没有 `OPENAI_API_KEY` 时会跳过，不会
 }
 ```
 
-第一版默认关闭 GDELT，等财联社链路稳定后再打开，避免频道一下子太吵。
+GDELT 需要 `OPENAI_API_KEY` 才会启用，以便把英文内容压缩成中文。
 
 ## 4. 关键参数
 
@@ -166,11 +169,18 @@ SQLite 文件通过 Docker Volume 保存，重启容器不会重复播报历史�
 
 因此同一条新闻被重复抓取时，一般不会再次发送。跨语言、完全不同措辞的同一事件，后续可以再加入语义去重。
 
-## 7. 第一版边界
+## 7. 运行维护
+
+GitHub Actions 默认每 10 分钟检查一次。任务会先运行语法与单元测试，再抓取和发送新闻；如果所有新闻源均失败，或所有 Discord 发送均失败，任务会明确标记为失败。
+
+SQLite 会保留最近 30 天的处理记录和最近 180 天的已发送记录，避免状态文件无限增长。Actions 的运行摘要和日志会显示具体失败的来源。
+
+公开仓库使用标准 `ubuntu-latest` runner 时，GitHub Actions 分钟免费。私有仓库用尽额度、付款失败或 spending limit 过低时，任务可能在任何代码运行前失败。
+
+## 8. 当前边界
 
 暂时不做：
 
-- 重要程度分级
 - X 网页抓取
 - 私人 Discord 群 self-bot 抓取
 - 自动投资建议

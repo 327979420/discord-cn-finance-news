@@ -53,6 +53,9 @@ jobs:
           echo "ready=$READY" >> "$GITHUB_OUTPUT"
           echo "dry_run=$DRY_RUN_INPUT" >> "$GITHUB_OUTPUT"
 
+      - name: Run checks
+        run: npm run check
+
       - name: Fetch, rank and broadcast global radar
         if: steps.config.outputs.ready == 'true'
         env:
@@ -91,3 +94,15 @@ jobs:
             git commit -m "Update finance news delivery state"
             git push
           fi
+
+      - name: Publish run summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## 中文金融快讯运行摘要"
+            echo "- 触发方式：${{ github.event_name }}"
+            echo "- 配置就绪：${{ steps.config.outputs.ready || 'unknown' }}"
+            echo "- 预览模式：${{ steps.config.outputs.dry_run || 'unknown' }}"
+            echo "- 提交：\`${GITHUB_SHA:0:8}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
