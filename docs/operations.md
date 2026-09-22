@@ -1,0 +1,166 @@
+# Finance News Bot: setup and operations
+
+## 1. 本地启动
+
+要求 Node.js 22.13 以上，推荐 Node.js 24。这个仓库没有第三方运行依赖。
+
+```bash
+cp .env.example .env
+```
+
+在 `.env` 中填入：
+
+```env
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/你的Webhook
+OPENAI_API_KEY=你的OpenAIKey
+```
+
+先测试 Discord：
+
+```bash
+npm run test:webhook
+```
+
+只运行一次并退出：
+
+```bash
+npm run run:once
+```
+
+持续运行：
+
+```bash
+npm run dev
+```
+
+健康检查：
+
+```text
+http://localhost:3000/healthz
+```
+
+## 2. Discord Webhook 怎么创建
+
+进入目标频道：
+
+```text
+编辑频道 → 整合 / Integrations → Webhooks → New Webhook → Copy Webhook URL
+```
+
+把网址放进 `.env`。Webhook 是密钥，不要发到群里，也不要提交到 GitHub。
+
+## 3. 新闻源配置
+
+编辑 `config/sources.json`。
+
+### 财联社电报
+
+```json
+{
+  "name": "财联社电报",
+  "url": "https://rsshub.app/cls/telegraph",
+  "language": "zh",
+  "enabled": true
+}
+```
+
+公共 RSSHub 实例可能限流或暂时不可用。正式长期运行建议自建 RSSHub，仓库已经提供：
+
+```bash
+docker compose -f infra/docker-compose.rsshub.yml up -d --build
+```
+
+该模式会自动使用 `http://rsshub:1200/cls/telegraph`。
+
+### Polymarket
+
+```json
+"polymarket": {
+  "enabled": true,
+  "limit": 30,
+  "minVolume": 0
+}
+```
+
+Polymarket 原文通常是英文，没有 `OPENAI_API_KEY` 时会跳过，不会把英文直接发到中文频道。
+
+### GDELT
+
+```json
+"gdelt": {
+  "enabled": true,
+  "maxRecordsPerQuery": 15,
+  "queries": [
+    "Federal Reserve OR inflation OR tariff",
+    "NVIDIA OR OpenAI OR DeepSeek",
+    "Bitcoin OR Ethereum",
+    "gold OR XAUUSD OR US dollar"
+  ]
+}
+```
+
+GDELT 需要 `OPENAI_API_KEY` 才会启用，以便把英文内容压缩成中文。
+
+## 4. 关键参数
+
+| 参数 | 默认值 | 作用 |
+|---|---:|---|
+| `POLL_INTERVAL_SECONDS` | 120 | 每两分钟检查一次 |
+| `MAX_NEWS_AGE_MINUTES` | 180 | 只处理三小时内新闻 |
+| `MAX_ITEMS_PER_CYCLE` | 8 | 每轮最多发送8条 |
+| `DEFAULT_PREFIX` | 快讯 | 普通消息前缀 |
+| `INCLUDE_SOURCE_URL` | false | 是否在正文显示原文链接 |
+| `INCLUDE_KEYWORDS` | 空 | 留空不过滤 |
+| `EXCLUDE_KEYWORDS` | 广告等 | 排除垃圾内容 |
+| `DRY_RUN` | false | true时只在终端预览 |
+
+## 5. Docker 启动
+
+```bash
+cp .env.example .env
+# 填好 .env
+docker compose up -d --build
+```
+
+查看日志：
+
+```bash
+docker compose logs -f news-bot
+```
+
+SQLite 文件通过 Docker Volume 保存，重启容器不会重复播报历史新闻。
+
+## 6. 当前去重逻辑
+
+机器人会同时记录：
+
+- 新闻源自己的 item ID
+- 标题与摘要的标准化 Hash
+- 最终中文消息的 Hash
+
+因此同一条新闻被重复抓取时，一般不会再次发送。跨语言、完全不同措辞的同一事件，后续可以再加入语义去重。
+
+## 7. 运行维护
+
+GitHub Actions 默认每 10 分钟检查一次。任务会先运行语法与单元测试，再抓取和发送新闻；如果所有新闻源均失败，或所有 Discord 发送均失败，任务会明确标记为失败。
+
+SQLite 会保留最近 30 天的处理记录和最近 180 天的已发送记录，避免状态文件无限增长。Actions 的运行摘要和日志会显示具体失败的来源。
+
+公开仓库使用标准 `ubuntu-latest` runner 时，GitHub Actions 分钟免费。私有仓库用尽额度、付款失败或 spending limit 过低时，任务可能在任何代码运行前失败。
+
+## 8. 当前边界
+
+暂时不做：
+
+- X 网页抓取
+- 私人 Discord 群 self-bot 抓取
+- 自动投资建议
+- 多服务器后台管理
+
+先确保“财联社 → 中文短讯 → Discord”长期稳定，再扩展到其他来源。
+
+## 安全与版权
+
+- 不要提交 `.env`、Webhook URL 或 API Key。
+- 新闻正文只做短摘要，保留原始 URL 能力，避免整篇转载。
+- RSSHub 路由属于非官方聚合链路，网站改版后可能暂时失效。
