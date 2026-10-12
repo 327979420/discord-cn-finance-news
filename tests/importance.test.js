@@ -46,6 +46,11 @@ test("traditional promotional headlines remain rejected", () => {
   assert.equal(scoreImportance(item("一文讀懂蘋果財報：營收達100億", { sourceKind: "rss" })).reason, "junk");
 });
 
+test("background financial figures cannot turn a non-earnings headline into a release", () => {
+  assert.equal(isMajorEarningsResult("焦點股》景碩：輝達CPU大單來了！ 外資喊天價", "輝達營收達500億美元，財報優於預期"), false);
+  assert.equal(isMajorEarningsResult("科技股市场观察", "苹果公布季度财报，每股收益2.1元"), false);
+});
+
 test("reported earnings get one slot within the existing source quota", () => {
   const earnings = item("蘋果公布季度財報，每股收益2.1元", { source: "Yahoo", sourceKind: "rss" });
   const other = [1, 2, 3].map((n) => item(`美股上涨${n * 10}%`, { source: "Yahoo", sourceKind: "rss", importanceHint: 95 }));

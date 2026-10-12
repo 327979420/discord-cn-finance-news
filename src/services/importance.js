@@ -298,8 +298,10 @@ export function isMajorEarningsResult(title, description = "") {
   // Forecasts, previews, and opinion pieces are not reported earnings.
   if (/(前瞻|预计|预估|预测|预告|将公布|即将|财报季|财报日期|公布时间|电话会议|分析师|专家|怎么看|为何|如何|scheduled|will report|to report|earnings call|[?？])/.test(headline)) return false;
   const text = normalize(`${title || ""} ${description || ""}`);
-  return hasAny(text, MAJOR_ENTITIES)
-    && /财报|营收|收入|净利润|每股收益|获利|earnings|revenue|\beps\b/.test(text)
+  // The headline itself must identify an earnings event and a tracked company.
+  // Article descriptions often mention unrelated companies and old financial figures.
+  return hasAny(headline, MAJOR_ENTITIES)
+    && /财报|营收|收入|净利润|每股收益|获利|earnings|revenue|\beps\b/.test(headline)
     && (/公布|发布|实现|达到|达|录得|报告|为|报喜|优于|超预期|低于预期|reports?\b|reported\b|results?\b|posts?\b/.test(text)
       || /(?:营收|收入|净利润|每股收益|获利|revenue|\beps\b)[^\d]{0,12}\d/.test(text))
     && /\d/.test(text);
