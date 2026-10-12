@@ -1,4 +1,5 @@
 import { stripHtml } from "../utils/text.js";
+import { normalizeForMatching } from "../utils/matching.js";
 
 const HARD_JUNK = [
   "广告", "促销", "优惠券", "抽奖", "福利", "招聘", "课程", "培训", "报名",
@@ -59,7 +60,8 @@ const MAJOR_ENTITIES = [
   "苹果", "apple", "微软", "microsoft", "英伟达", "nvidia", "谷歌", "google", "alphabet",
   "亚马逊", "amazon", "meta", "特斯拉", "tesla", "台积电", "tsmc", "三星", "openai",
   "伯克希尔", "摩根大通", "高盛", "花旗", "美国银行", "coinbase", "binance", "币安",
-  "palantir", "pltr", "microstrategy", "strategy", "mstr"
+  "palantir", "pltr", "microstrategy", "strategy", "mstr", "oracle", "micron", "amd", "博通", "broadcom",
+  "nvda", "aapl", "msft", "amzn", "googl", "tsla", "orcl"
 ];
 
 const TECH_HIGH_SIGNAL = [
@@ -121,7 +123,8 @@ export function scoreImportance(item, options = {}) {
   const politicalMajor = hasAny(text, POLITICAL_MAJOR);
   const marketNexus = hasAny(text, MARKET_NEXUS);
   const publicSafety = hasAny(text, PUBLIC_SAFETY);
-  if (political && !marketNexus && !politicalMajor && !publicSafety && item.sourceKind !== "polymarket_move") {
+  const earningsResult = isMajorEarningsResult(item.title, item.description);
+  if (political && !marketNexus && !politicalMajor && !publicSafety && !earningsResult && item.sourceKind !== "polymarket_move") {
     return rejected(10, "generic-politics");
   }
 
@@ -195,6 +198,10 @@ export function scoreImportance(item, options = {}) {
   }
 
   if (text.length > 500) score -= 5;
+  if (earningsResult) {
+    score = Math.max(score, 74);
+    reasons.push("major-earnings-result");
+  }
   score = Math.max(0, Math.min(100, score));
 
   return {
@@ -216,7 +223,11 @@ export function selectImportantItems(items, options = {}) {
 
   const selected = [];
   const sourceCounts = new Map();
-  for (const entry of accepted) {
+  // Reserve one normal quota slot for an actual major-company earnings release.
+  // Forecasts and commentary never get this slot; all usual limits still apply.
+  const earnings = accepted.find((entry) => entry.importance.reasons.includes("major-earnings-result"));
+  const ordered = earnings ? [earnings, ...accepted.filter((entry) => entry !== earnings)] : accepted;
+  for (const entry of ordered) {
     const count = sourceCounts.get(entry.item.source) || 0;
     if (count >= maxPerSource) continue;
     selected.push({
@@ -279,7 +290,19 @@ function looksLikeQuestionOrFeature(title) {
 }
 
 function normalize(value) {
-  return stripHtml(String(value || "")).replace(/https?:\/\/\S+/gi, "").replace(/\s+/g, " ").trim().toLowerCase();
+  return normalizeForMatching(stripHtml(String(value || "")).replace(/https?:\/\/\S+/gi, "").replace(/\s+/g, " ").trim());
+}
+
+export function isMajorEarningsResult(title, description = "") {
+  const headline = normalize(title);
+  // Forecasts, previews, and opinion pieces are not reported earnings.
+  if (/(前瞻|预计|预估|预测|预告|将公布|即将|财报季|财报日期|公布时间|电话会议|分析师|专家|怎么看|为何|如何|scheduled|will report|to report|earnings call|[?？])/.test(headline)) return false;
+  const text = normalize(`${title || ""} ${description || ""}`);
+  return hasAny(text, MAJOR_ENTITIES)
+    && /财报|营收|收入|净利润|每股收益|获利|earnings|revenue|\beps\b/.test(text)
+    && (/公布|发布|实现|达到|达|录得|报告|为|报喜|优于|超预期|低于预期|reports?\b|reported\b|results?\b|posts?\b/.test(text)
+      || /(?:营收|收入|净利润|每股收益|获利|revenue|\beps\b)[^\d]{0,12}\d/.test(text))
+    && /\d/.test(text);
 }
 
 function rejected(score, reason) {

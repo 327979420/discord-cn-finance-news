@@ -29,11 +29,38 @@ export class NewsStore {
         sent_since_image INTEGER NOT NULL DEFAULT 0
       ) STRICT;
       INSERT OR IGNORE INTO delivery_state (singleton, sent_since_image) VALUES (1, 0);
+      CREATE TABLE IF NOT EXISTS runtime_state (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      ) STRICT;
     `);
   }
 
   isProcessed(itemId) {
     return Boolean(this.database.prepare("SELECT 1 AS found FROM processed_items WHERE item_id = ? LIMIT 1").get(itemId));
+  }
+
+  lastSuccessfulCycleAt() {
+    return this.database.prepare("SELECT value FROM runtime_state WHERE key = 'last_successful_cycle_at'").get()?.value;
+  }
+
+  recordSuccessfulCycle(at) {
+    this.database.prepare("INSERT OR REPLACE INTO runtime_state (key, value) VALUES ('last_successful_cycle_at', ?)").run(at);
+  }
+
+  pendingNewsAt() {
+    return this.database.prepare("SELECT value FROM runtime_state WHERE key = 'pending_news_at'").get()?.value;
+  }
+
+  recordPendingNews(at) {
+    if (at) this.database.prepare("INSERT OR REPLACE INTO runtime_state (key, value) VALUES ('pending_news_at', ?)").run(at);
+    else this.database.prepare("DELETE FROM runtime_state WHERE key = 'pending_news_at'").run();
+  }
+
+  // Re-evaluate previously rejected items after scoring rules change, within the freshness window.
+  isFinalized(itemId) {
+    const row = this.database.prepare("SELECT status FROM processed_items WHERE item_id = ?").get(itemId);
+    return Boolean(row && !row.status.startsWith("filtered:") && row.status !== "dry-run");
   }
 
   hasContentHash(contentHash) {
@@ -47,7 +74,8 @@ export class NewsStore {
   findSimilarSent(title, options = {}) {
     const cutoff = new Date(Date.now() - (options.hours ?? 36) * 3600000).toISOString();
     const rows = this.database.prepare("SELECT title FROM sent_messages WHERE sent_at >= ? ORDER BY sent_at DESC LIMIT 300").all(cutoff);
-    return rows.find((row) => newsTextSimilarity(title, row.title) >= (options.threshold ?? 0.72));
+    return rows.find((row) => (!options.preserveNumbers || numberSignature(title) === numberSignature(row.title))
+      && newsTextSimilarity(title, row.title) >= (options.threshold ?? 0.72));
   }
 
   shouldAttachImage(item, options = {}) {
@@ -104,6 +132,11 @@ export class NewsStore {
       this.database.close();
     }
   }
+}
+
+function numberSignature(title) {
+  const text = String(title).normalize("NFKC").replace(/(\d),(?=\d)/g, "$1");
+  return [...text.matchAll(/\d+(?:\.\d+)?/g)].map((match) => Number(match[0])).sort((a, b) => a - b).join(",");
 }
 
 function isUsableImageUrl(value) {

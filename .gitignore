@@ -3,6 +3,7 @@ dist/
 .env
 data/*.db
 data/*.db-*
+.state/*.db-*
 coverage/
 .DS_Store
 *.log

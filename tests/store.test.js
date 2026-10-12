@@ -45,3 +45,12 @@ test("store prunes expired state while preserving recent records", () => {
   assert.equal(store.isProcessed("recent"), true);
   store.close();
 });
+
+test("earnings deduplication preserves changes to reported numbers", () => {
+  const store = new NewsStore(":memory:");
+  const report = { id: "eps-report", source: "Yahoo", title: "蘋果公布季度財報，每股收益2.1元", publishedAt: new Date().toISOString() };
+  store.recordSent(report, "eps-content", "eps-message");
+  assert.ok(store.findSimilarSent("蘋果公布季度財報，每股收益2.10元", { preserveNumbers: true }));
+  assert.equal(store.findSimilarSent("蘋果公布季度財報，每股收益3.1元", { preserveNumbers: true }), undefined);
+  store.close();
+});

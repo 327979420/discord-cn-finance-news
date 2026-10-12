@@ -14,11 +14,13 @@ import { MarketMovesSource } from "./sources/market-moves-source.js";
 import { PolymarketSource } from "./sources/polymarket-source.js";
 import { RssSource } from "./sources/rss-source.js";
 import { NewsStore } from "./store/news-store.js";
+import { cycleIsHealthy } from "./services/freshness.js";
+import fs from "node:fs";
 
 const logger = createLogger();
 const config = loadConfig();
 const store = new NewsStore(config.DATABASE_PATH);
-const pruned = store.prune();
+const pruned = config.DRY_RUN ? { processed: 0, sent: 0 } : store.prune();
 if (pruned.processed || pruned.sent) logger.info(pruned, "已清理过期去重状态");
 const sources = createSources(config);
 const summarizer = new Summarizer({
@@ -47,7 +49,7 @@ async function cycle() {
   try {
     const result = await runPipelineCycle({ config, sources, store, summarizer, publisher, logger });
     healthState.lastCycleAt = new Date().toISOString();
-    healthState.lastCycleOk = result.failedSources < sources.length;
+    healthState.lastCycleOk = cycleIsHealthy(result, sources.length);
     healthState.lastCycleResult = result;
     delete healthState.lastError;
     logger.info(result, "本轮新闻处理完成");
@@ -66,10 +68,10 @@ async function cycle() {
 const firstResult = await cycle();
 if (config.RUN_ONCE) {
   store.close();
-  const allSourcesFailed = firstResult?.failedSources === sources.length;
-  const allDeliveriesFailed = firstResult && firstResult.attemptedDeliveries > 0
-    && firstResult.failedDeliveries === firstResult.attemptedDeliveries;
-  if (!firstResult || allSourcesFailed || allDeliveriesFailed) process.exitCode = 1;
+  if (!cycleIsHealthy(firstResult, sources.length)) process.exitCode = 1;
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, `\n### 抓取与发送结果\n\n\`\`\`json\n${JSON.stringify(firstResult || { error: healthState.lastError }, null, 2)}\n\`\`\`\n`);
+  }
 } else {
   const timer = setInterval(() => void cycle(), config.POLL_INTERVAL_SECONDS * 1000);
   logger.info({ sourceCount: sources.length, intervalSeconds: config.POLL_INTERVAL_SECONDS, dryRun: config.DRY_RUN, health: `http://localhost:${config.PORT}/healthz` }, "中文金融快讯服务已启动");
@@ -103,6 +105,9 @@ function createSources(config) {
   }
   if (sourcesConfig.gdelt.enabled && sourcesConfig.gdelt.queries.length && config.OPENAI_API_KEY) {
     result.push(new GdeltSource(sourcesConfig.gdelt));
+  }
+  if (!config.OPENAI_API_KEY && (sourcesConfig.polymarket.enabled || sourcesConfig.gdelt.enabled)) {
+    logger.warn({ polymarketEnabled: false, gdeltEnabled: false }, "未配置 OPENAI_API_KEY，英文来源未启用；中文来源继续运行");
   }
   if (!result.length) throw new Error("config/sources.json 中没有启用任何新闻源");
   return result;

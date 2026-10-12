@@ -14,7 +14,7 @@ on:
       - ".github/workflows/news-broadcast.yml"
   schedule:
     # Every 10 minutes. Public market pages and news feeds are screened each run.
-    - cron: "3,13,23,33,43,53 * * * *"
+    - cron: "7,17,27,37,47,57 * * * *"
 
 permissions:
   contents: write
@@ -47,8 +47,8 @@ jobs:
         run: |
           READY=true
           if [[ "$DRY_RUN_INPUT" != "true" && -z "$DISCORD_WEBHOOK_URL" ]]; then
-            READY=false
-            echo "::notice::Add the DISCORD_WEBHOOK_URL repository secret to enable broadcasts."
+            echo "::error::Missing DISCORD_WEBHOOK_URL repository secret."
+            exit 1
           fi
           echo "ready=$READY" >> "$GITHUB_OUTPUT"
           echo "dry_run=$DRY_RUN_INPUT" >> "$GITHUB_OUTPUT"
@@ -66,6 +66,7 @@ jobs:
           CONFIG_PATH: config/sources.json
           DATABASE_PATH: .state/news.db
           MAX_NEWS_AGE_MINUTES: 45
+          MAX_CATCHUP_AGE_MINUTES: 720
           MAX_ITEMS_PER_CYCLE: 6
           MAX_ITEMS_PER_SOURCE: 2
           MIN_IMPORTANCE_SCORE: 60
@@ -82,7 +83,8 @@ jobs:
         run: node src/index.js
 
       - name: Save deduplication state
-        if: steps.config.outputs.ready == 'true' && success() && steps.config.outputs.dry_run != 'true'
+        # Preserve successful sends even if a different source/item failed later.
+        if: always() && !cancelled() && steps.config.outputs.ready == 'true' && steps.config.outputs.dry_run != 'true'
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
