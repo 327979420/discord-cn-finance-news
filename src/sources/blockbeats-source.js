@@ -57,7 +57,8 @@ function blockBeatsTimeToIso(match, now) {
     hour: "2-digit", minute: "2-digit", hourCycle: "h23"
   });
   const parts = Object.fromEntries(formatter.formatToParts(now).map((part) => [part.type, part.value]));
-  const hour = Number(match[1]);
+  // BlockBeats shows the hour after midnight as 24:xx; that is 00:xx of the current Beijing day.
+  const hour = Number(match[1]) % 24;
   const minute = Number(match[2]);
   let inferred = new Date(`${parts.year}-${parts.month}-${parts.day}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+08:00`);
   if (inferred.getTime() - now.getTime() > 2 * 60 * 60 * 1000) inferred = new Date(inferred.getTime() - 86400000);
