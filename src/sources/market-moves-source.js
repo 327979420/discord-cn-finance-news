@@ -29,7 +29,7 @@ export class MarketMovesSource {
           }
         }, context.timeoutMs);
         if (!response.ok) throw new Error(`${response.status} ${response.statusText}`);
-        pageTexts.set(page.key, stripHtml(await response.text()));
+        pageTexts.set(page.key, stripHtml(markTrend(await response.text())));
       } catch (error) {
         failures.push(`${page.key}: ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -69,19 +69,46 @@ export class MarketMovesSource {
   }
 }
 
+// Yahoo Taiwan tables read 股價 漲跌 漲跌幅(%) 買進 賣出 開盤 昨收 … and show
+// direction only by colour and a small triangle, never a minus sign. Turns the
+// triangle in each change cell into an explicit "+" or "-" before tags are stripped.
+export function markTrend(html) {
+  return String(html).replace(
+    /(C\(\$c-trend-(up|down)\)"[^>]*>\s*<span class="Mend\(4px\) Bds\(s\)"[^>]*><\/span>\s*)(?=[0-9])/g,
+    (_, cell, trend) => `${cell}${trend === "down" ? "-" : "+"}`
+  );
+}
+
+// The direction comes from the marked sign, checked against price minus 昨收
+// where 昨收 matches the change (crypto shows a 24-hour change instead). A
+// quote with no sign and no matching 昨收, or where the two disagree, is
+// skipped rather than guessed.
 export function extractQuote(text, symbol) {
   const index = String(text).indexOf(symbol);
   if (index < 0) return undefined;
   const segment = String(text).slice(index + symbol.length, index + symbol.length + 260);
-  const match = segment.match(/([0-9][0-9,.]*)\s+([+-]?[0-9][0-9,.]*)\s+([+-]?\d+(?:\.\d+)?)%/);
+  const match = segment.match(/([0-9][0-9,.]*)\s+([+-]?[0-9][0-9,.]*)\s+([+-]?\d+(?:\.\d+)?)%(?:\s+(\S+)\s+(\S+)\s+([0-9][0-9,.]*)\s+([0-9][0-9,.]*))?/);
   if (!match) return undefined;
 
   const price = numberFrom(match[1]);
-  const absoluteChange = numberFrom(match[2]);
-  let changePct = Number(match[3]);
-  if (!Number.isFinite(price) || !Number.isFinite(absoluteChange) || !Number.isFinite(changePct)) return undefined;
-  if (absoluteChange < 0 && changePct > 0) changePct *= -1;
-  return { price, absoluteChange, changePct };
+  const change = numberFrom(match[2]);
+  const pct = Number(match[3]);
+  if (![price, change, pct].every(Number.isFinite)) return undefined;
+
+  const marked = /^[+-]/.test(match[2]) || /^[+-]/.test(match[3]);
+  const markedSign = match[2].startsWith("-") || match[3].startsWith("-") ? -1 : 1;
+  const previousClose = numberFrom(match[7]);
+  const difference = previousClose > 0 ? price - previousClose : undefined;
+  const closeAgrees = Number.isFinite(difference) &&
+    Math.abs(Math.abs(difference) - Math.abs(change)) <= Math.max(0.02, Math.abs(change) * 0.01);
+  const closeSign = difference < 0 ? -1 : 1;
+
+  let sign;
+  if (marked && closeAgrees && Math.abs(change) > 0 && markedSign !== closeSign) return undefined;
+  if (marked) sign = markedSign;
+  else if (closeAgrees) sign = closeSign;
+  else return undefined;
+  return { price, absoluteChange: sign * Math.abs(change), changePct: sign * Math.abs(pct) };
 }
 
 export function detectDailyPageMove(quote, instrument, now = new Date()) {
