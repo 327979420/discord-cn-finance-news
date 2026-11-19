@@ -8,13 +8,21 @@ on:
         required: false
         default: false
         type: boolean
+      force_digest:
+        description: Build the latest digest card now, even if it was already posted
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [main]
     paths:
       - ".github/workflows/news-broadcast.yml"
   schedule:
-    # Every 10 minutes. Public market pages and news feeds are screened each run.
-    - cron: "7,17,27,37,47,57 * * * *"
+    # Backup only. GitHub fires this a few times a day at best; the Cloudflare
+    # Worker in scheduler/ dispatches the workflow every 15 minutes. Each run
+    # posts a digest card if a slot (07:30, 12:00, 17:00, 21:15 Beijing) is due,
+    # otherwise it only checks for emergencies.
+    - cron: "7,37 * * * *"
 
 permissions:
   contents: write
@@ -26,7 +34,7 @@ concurrency:
 jobs:
   broadcast:
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -56,7 +64,29 @@ jobs:
       - name: Run checks
         run: npm run check
 
-      - name: Fetch, rank and broadcast global radar
+      - name: Is a digest card due?
+        id: digest
+        env:
+          DATABASE_PATH: .state/news.db
+          FORCE_DIGEST: ${{ github.event_name == 'workflow_dispatch' && inputs.force_digest || false }}
+          NODE_NO_WARNINGS: 1
+        run: node scripts/digest-due.js
+
+      - name: Install Claude Code
+        if: steps.digest.outputs.due == 'true'
+        run: npm install -g @anthropic-ai/claude-code@2.1.300
+
+      # Copy-pasted tokens sometimes carry line breaks; strip them and mask the result.
+      # Without the token, digest cards fall back to unedited headlines.
+      - name: Load Claude token
+        if: steps.digest.outputs.due == 'true'
+        env:
+          RAW: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          CLEAN=$(printf '%s' "$RAW" | tr -d '[:space:]')
+          if [ -n "$CLEAN" ]; then echo "::add-mask::$CLEAN"; echo "CLAUDE_CODE_OAUTH_TOKEN=$CLEAN" >> "$GITHUB_ENV"; fi
+
+      - name: Post digest card or emergency alerts
         if: steps.config.outputs.ready == 'true'
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
@@ -78,6 +108,8 @@ jobs:
           INCLUDE_SOURCE_URL: false
           REQUEST_TIMEOUT_MS: 25000
           RUN_ONCE: true
+          DIGEST_MODEL: sonnet
+          FORCE_DIGEST: ${{ github.event_name == 'workflow_dispatch' && inputs.force_digest || false }}
           DRY_RUN: ${{ steps.config.outputs.dry_run }}
           NODE_NO_WARNINGS: 1
         run: node src/index.js
@@ -94,7 +126,11 @@ jobs:
           fi
           if ! git diff --cached --quiet; then
             git commit -m "Update finance news delivery state"
-            git push
+            for attempt in 1 2 3; do
+              git pull --rebase --quiet && git push --quiet && exit 0
+              sleep 5
+            done
+            exit 1
           fi
 
       - name: Publish run summary

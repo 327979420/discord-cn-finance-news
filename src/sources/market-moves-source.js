@@ -13,6 +13,8 @@ export class MarketMovesSource {
   constructor(options = {}) {
     this.name = "全球市场异动";
     this.instruments = Array.isArray(options.instruments) ? options.instruments : [];
+    // Every quote read in the latest fetch, for the digest card's market header.
+    this.lastQuotes = [];
   }
 
   async fetch(context) {
@@ -40,19 +42,24 @@ export class MarketMovesSource {
 
     const now = new Date();
     const output = [];
+    const quotes = [];
     let foundQuotes = 0;
     for (const instrument of this.instruments) {
       const pageKey = pageKeyForInstrument(instrument);
       if (!pageKey) continue;
       const text = pageTexts.get(pageKey);
-      if (!text) continue;
-      const quote = extractQuote(text, instrument.symbol);
+      let quote = text ? extractQuote(text, instrument.symbol) : undefined;
+      // Yahoo's crypto table shows no direction for the 24-hour change, so
+      // extractQuote skips it; Coinbase's public 24-hour stats fill the gap.
+      if (!quote && pageKey === "crypto") quote = await fetchCoinbaseQuote(instrument.symbol, context.timeoutMs).catch(() => undefined);
       if (!quote) continue;
       foundQuotes += 1;
+      quotes.push({ ...instrument, ...quote });
       const item = detectDailyPageMove(quote, instrument, now);
       if (item) output.push(item);
     }
 
+    this.lastQuotes = quotes;
     console.log(JSON.stringify({
       time: now.toISOString(),
       level: failures.length ? "warn" : "info",
@@ -138,8 +145,29 @@ export function detectDailyPageMove(quote, instrument, now = new Date()) {
     language: "zh",
     marketMovePct: changePct,
     marketMoveBasis: "day",
+    moveStrength: strength,
     assetType: instrument.type || instrument.group || "market",
     importanceHint: Math.min(100, Math.round(74 + Math.min(22, Math.max(0, strength - 1) * 14)))
+  };
+}
+
+export async function fetchCoinbaseQuote(symbol, timeoutMs) {
+  const response = await fetchWithTimeout(`https://api.exchange.coinbase.com/products/${encodeURIComponent(symbol)}/stats`, {
+    headers: { accept: "application/json", "user-agent": "discord-cn-finance-news/0.2" }
+  }, timeoutMs);
+  if (!response.ok) throw new Error(`Coinbase ${response.status}`);
+  return coinbaseQuote(await response.json());
+}
+
+// 24-hour change from Coinbase's open (price 24 hours ago) and last trade.
+export function coinbaseQuote(stats) {
+  const open = Number(stats?.open);
+  const last = Number(stats?.last);
+  if (!(open > 0) || !(last > 0)) return undefined;
+  return {
+    price: Math.round(last * 100) / 100,
+    absoluteChange: Math.round((last - open) * 100) / 100,
+    changePct: Math.round((last / open - 1) * 10000) / 100
   };
 }
 
