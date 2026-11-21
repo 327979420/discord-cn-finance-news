@@ -1,6 +1,6 @@
 import { sha256 } from "./utils/hash.js";
 import { matchesKeywordRules, normalizeForHash, normalizeNewsFingerprint } from "./utils/text.js";
-import { selectImportantItems, isMajorEarningsResult } from "./services/importance.js";
+import { selectImportantItems, isMajorEarningsResult, isEmergency } from "./services/importance.js";
 import { newsWindowMinutes } from "./services/freshness.js";
 
 export async function runPipelineCycle(deps) {
@@ -32,6 +32,10 @@ export async function runPipelineCycle(deps) {
 
   const now = Date.now();
   const maxAgeMs = windowMinutes * 60000;
+  if (config.BREAKING_ONLY === true && !config.DRY_RUN) {
+    store.addToPool(items.filter((item) => item.sourceKind !== "market" && item.timestampReliable !== false
+      && Number.isFinite(Date.parse(item.publishedAt)) && now - Date.parse(item.publishedAt) < 24 * 3600000));
+  }
   const excluded = { stale: 0, unreliableTimestamp: 0, futureTimestamp: 0, keyword: 0, processed: 0 };
   let duplicate = 0;
   const eligible = items
@@ -66,12 +70,25 @@ export async function runPipelineCycle(deps) {
       return false;
     });
 
-  const { selected: candidates, evaluated } = selectImportantItems(eligible, {
-    minScore: config.MIN_IMPORTANCE_SCORE,
+  // With digest cards on, this path only posts emergencies, capped per day; the
+  // rest stays open (filtered:*) for the next card. Raw teaser headlines and
+  // English items need an editor, so they always wait for the card.
+  const breakingOnly = config.BREAKING_ONLY === true;
+  const scoring = breakingOnly
+    ? eligible.filter((item) => !item.preserveTitle && item.language !== "en" && item.sourceKind !== "gdelt" && !String(item.sourceKind).startsWith("polymarket"))
+    : eligible;
+  const { selected: ranked, evaluated } = selectImportantItems(scoring, {
+    minScore: breakingOnly ? config.BREAKING_ONLY_SCORE : config.MIN_IMPORTANCE_SCORE,
     breakingScore: config.BREAKING_IMPORTANCE_SCORE,
     maxItems: config.MAX_ITEMS_PER_CYCLE,
     maxPerSource: config.MAX_ITEMS_PER_SOURCE
   });
+  let candidates = ranked;
+  if (breakingOnly) {
+    const emergencies = new Set(evaluated.filter(({ item, importance }) => isEmergency(item, importance)).map(({ item }) => item.id));
+    const allowance = Math.max(0, config.MAX_BREAKING_PER_DAY - store.breakingSentToday());
+    candidates = ranked.filter((item) => emergencies.has(item.id)).slice(0, allowance);
+  }
 
   let filteredJunk = 0;
   let filteredLowImportance = 0;
@@ -132,6 +149,7 @@ export async function runPipelineCycle(deps) {
         throw error;
       }
       if (!config.DRY_RUN) store.recordSent(publishedItem, contentHash, messageHash);
+      if (!config.DRY_RUN && breakingOnly) store.countBreakingSent();
       sent += 1;
       logger.info({ source: item.source, score: item.importanceScore, newsMessage: message }, config.DRY_RUN ? "本地预览完成" : "已推送至 Discord");
     } catch (error) {
@@ -139,7 +157,8 @@ export async function runPipelineCycle(deps) {
       logger.error({ source: item.source, title: item.title, score: item.importanceScore, error: errorToString(error) }, "处理新闻失败，将在下轮重试");
     }
   }
-  const pending = evaluated.filter(({ item, importance }) => importance.shouldSend && !store.isFinalized(item.id));
+  // In breaking-only mode, unsent items are the next card's job, not a backlog.
+  const pending = breakingOnly ? [] : evaluated.filter(({ item, importance }) => importance.shouldSend && !store.isFinalized(item.id));
   if (!config.DRY_RUN && failedSources === 0 && failedItems === 0) {
     store.recordSuccessfulCycle(cycleStartedAt);
     store.recordPendingNews(pending.map(({ item }) => item.publishedAt).sort()[0]);

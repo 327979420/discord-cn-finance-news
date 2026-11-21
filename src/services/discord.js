@@ -22,6 +22,20 @@ export class DiscordPublisher {
     await this.executeWebhook(payload);
   }
 
+  async publishEmbed(embed, textPreview) {
+    if (this.options.dryRun) {
+      console.log(`\n[DRY RUN]\n${textPreview}\n`);
+      return;
+    }
+    if (!this.options.webhookUrl) throw new Error("Discord Webhook 未配置");
+    await this.executeWebhook({
+      username: this.options.username,
+      ...(this.options.avatarUrl ? { avatar_url: this.options.avatarUrl } : {}),
+      allowed_mentions: { parse: [] },
+      embeds: [embed]
+    });
+  }
+
   async executeWebhook(payload) {
     const url = new URL(this.options.webhookUrl);
     url.searchParams.set("wait", "true");

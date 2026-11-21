@@ -82,7 +82,7 @@ docker compose -f infra/docker-compose.rsshub.yml up -d --build
 }
 ```
 
-Polymarket 原文通常是英文，没有 `OPENAI_API_KEY` 时会跳过，不会把英文直接发到中文频道。
+Polymarket 原文通常是英文，只进简报卡（由 Claude 翻译），并且只保留和金融相关的市场（体育、娱乐盘口会被过滤）。旧的逐条模式下没有 `OPENAI_API_KEY` 时会跳过。
 
 ### GDELT
 
@@ -99,9 +99,27 @@ Polymarket 原文通常是英文，没有 `OPENAI_API_KEY` 时会跳过，不会
 }
 ```
 
-GDELT 需要 `OPENAI_API_KEY` 才会启用，以便把英文内容压缩成中文。
+GDELT 只进简报卡（由 Claude 翻译）；它经常限流（429），失败只记警告，不会让运行失败。
 
-## 4. 关键参数
+## 4. 定时简报卡（默认模式）
+
+`config/sources.json` 的 `digest.enabled` 为 true 时，机器人不再一条一条发快讯，而是每天按北京时间 07:30、12:00、17:00、21:15 各发一张 Discord 卡片：
+
+- 顶部一行写这段时间最重要的一件事，下面是行情（各时段显示的地区不同，例如 21:15 不显示美股，因为那只是昨天的收盘）。超过异动阈值的涨跌加粗。
+- 正文按主题（美股与科技、宏观与政策、加密货币等）列出，每行一件事，同一事件的多条来源合并成一行，后面附来源链接。
+- 由 headless Claude Code 整理：繁体和英文改写成简体，删掉标题党和没有事实的条目。Claude 只能用给它的条目；代码会删掉引用不存在条目、或写了条目里没有的数字的行（日志里有「简报行未通过检查」）。
+- Claude 未配置或失败时，卡片改用原始标题（页脚写「原始标题，未经整理」），没用上的条目留给下一张卡。
+
+两张卡之间的运行只做两件事：把看到的新闻存进新闻池（Yahoo 的 RSS 只列最近约三小时，没有池子的话卡片会漏掉早些时候的新闻），以及单独推送真正的紧急事件（熔断、违约、开战、地震海啸等，或行情异动达到阈值 1.5 倍），每天最多 `MAX_BREAKING_PER_DAY` 条。其余一律等下一张卡。
+
+需要两个仓库 Secret / 设置：
+
+1. `CLAUDE_CODE_OAUTH_TOKEN`：在本机运行 `claude setup-token` 生成，`gh secret set CLAUDE_CODE_OAUTH_TOKEN -R 327979420/discord-cn-finance-news`。使用订阅额度，每天约 4 次调用。
+2. 准点调度：GitHub 自带的定时任务一天只触发几次，所以由 `scheduler/` 里的 Cloudflare Worker 每 15 分钟触发一次工作流。部署方法写在 `scheduler/wrangler.jsonc` 顶部，需要一个只授权本仓库、Actions 读写的 fine-grained GitHub 令牌。
+
+手动出一张卡试试：Actions → Chinese Finance News Broadcast → Run workflow，勾选 `force_digest`（再勾 `dry_run` 就只在日志里预览）。
+
+## 5. 关键参数
 
 | 参数 | 默认值 | 作用 |
 |---|---:|---|
@@ -115,7 +133,7 @@ GDELT 需要 `OPENAI_API_KEY` 才会启用，以便把英文内容压缩成中�
 | `EXCLUDE_KEYWORDS` | 广告等 | 排除垃圾内容 |
 | `DRY_RUN` | false | true时只在终端预览 |
 
-## 5. Docker 启动
+## 6. Docker 启动
 
 ```bash
 cp .env.example .env
@@ -131,7 +149,7 @@ docker compose logs -f news-bot
 
 SQLite 文件通过 Docker Volume 保存，重启容器不会重复播报历史新闻。
 
-## 6. 当前去重逻辑
+## 7. 当前去重逻辑
 
 机器人会同时记录：
 
@@ -141,9 +159,9 @@ SQLite 文件通过 Docker Volume 保存，重启容器不会重复播报历史�
 
 因此同一条新闻被重复抓取时，一般不会再次发送。跨语言、完全不同措辞的同一事件，后续可以再加入语义去重。
 
-## 7. 运行维护
+## 8. 运行维护
 
-GitHub Actions 默认每 10 分钟检查一次。任务会先运行语法与单元测试，再抓取和发送新闻；如果所有新闻源均失败，或所有 Discord 发送均失败，任务会明确标记为失败。
+Cloudflare Worker 每 15 分钟触发一次工作流（GitHub 自带定时任务只作后备）。任务会先运行语法与单元测试，再抓取和发送新闻；如果所有新闻源均失败，或所有 Discord 发送均失败，任务会明确标记为失败。
 
 GitHub 的 `schedule` 可能延迟或丢弃，不能当作准点调度服务。机器人记录上次成功检查时间；延迟后自动扩大补查窗口（加5分钟重叠，最多12小时），正常节奏下 Actions 仍使用45分钟窗口。源只返回有限条最新新闻，补查不能找回已从 Feed 消失的历史新闻。需要稳定的实时监控时，使用上面的 Docker 常驻服务。
 
@@ -157,7 +175,7 @@ SQLite 会保留最近 30 天的处理记录和最近 180 天的已发送记录�
 
 公开仓库使用标准 `ubuntu-latest` runner 时，GitHub Actions 分钟免费。私有仓库用尽额度、付款失败或 spending limit 过低时，任务可能在任何代码运行前失败。
 
-## 8. 当前边界
+## 9. 当前边界
 
 暂时不做：
 
