@@ -11,6 +11,7 @@ import { ClaudeDigestWriter, HeadlineDigestWriter } from "./services/digest-writ
 import { DiscordPublisher } from "./services/discord.js";
 import { Summarizer } from "./services/summarizer.js";
 import { BlockBeatsSource } from "./sources/blockbeats-source.js";
+import { EquationNewsSource } from "./sources/equation-news-source.js";
 import { ClsSource } from "./sources/cls-source.js";
 import { GdeltSource } from "./sources/gdelt-source.js";
 import { MarketMovesSource } from "./sources/market-moves-source.js";
@@ -30,7 +31,7 @@ const claudeWriter = digestConfig.enabled && config.DIGEST_WRITER === "claude";
 // Cards can include English sources because Claude translates them; the
 // between-cards path cannot, so it never fetches them.
 const sources = createSources(config, { english: Boolean(config.OPENAI_API_KEY) && !digestConfig.enabled });
-const digestSources = digestConfig.enabled ? createSources(config, { english: claudeWriter || Boolean(config.OPENAI_API_KEY) }) : sources;
+const digestSources = digestConfig.enabled ? createSources(config, { english: claudeWriter || Boolean(config.OPENAI_API_KEY), digest: true }) : sources;
 const digestWriter = claudeWriter ? new ClaudeDigestWriter({ model: config.DIGEST_MODEL }) : new HeadlineDigestWriter();
 const fallbackWriter = new HeadlineDigestWriter();
 const summarizer = new Summarizer({
@@ -118,6 +119,10 @@ function createSources(config, options = {}) {
     if (source.enabled) result.push(new RssSource(source));
   }
   if (sourcesConfig.blockbeats.enabled) result.push(new BlockBeatsSource(sourcesConfig.blockbeats));
+  if (sourcesConfig.equationNews.enabled && sourcesConfig.equationNews.channels.length) {
+    // Between cards only the latest page matters; a card pages back over its whole window.
+    result.push(new EquationNewsSource({ ...sourcesConfig.equationNews, maxPages: options.digest ? sourcesConfig.equationNews.maxPages : 1 }));
+  }
   if (sourcesConfig.marketMoves.enabled && sourcesConfig.marketMoves.instruments.length) {
     result.push(new MarketMovesSource(sourcesConfig.marketMoves));
   }

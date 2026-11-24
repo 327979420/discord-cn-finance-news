@@ -19,6 +19,17 @@
       "enabled": true
     }
   ],
+  "equationNews": {
+    "enabled": true,
+    "lookbackHours": 18,
+    "maxPages": 4,
+    "channels": [
+      { "key": "tradfi", "name": "方程式财经", "importanceHint": 55 },
+      { "key": "main", "name": "方程式新闻", "importanceHint": 50 },
+      { "key": "tfmoves", "name": "方程式美股异动", "importanceHint": 50 },
+      { "key": "major", "name": "方程式加密行情", "importanceHint": 50 }
+    ]
+  },
   "blockbeats": {
     "enabled": true,
     "url": "https://www.theblockbeats.info/newsflash/",

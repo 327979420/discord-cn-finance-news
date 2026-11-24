@@ -104,7 +104,19 @@ function readSources(filePath) {
       : []
   };
   const digest = readDigest(raw.digest);
-  return { cls, rss, blockbeats, polymarket, gdelt, marketMoves, digest };
+  const equationNews = {
+    enabled: raw.equationNews?.enabled === true,
+    lookbackHours: boundedNumber(raw.equationNews?.lookbackHours, 18, 1, 72, "equationNews.lookbackHours"),
+    maxPages: boundedNumber(raw.equationNews?.maxPages, 4, 1, 10, "equationNews.maxPages"),
+    channels: Array.isArray(raw.equationNews?.channels)
+      ? raw.equationNews.channels.map((channel, index) => ({
+          key: requiredString(channel?.key, `equationNews.channels[${index}].key`),
+          name: requiredString(channel?.name, `equationNews.channels[${index}].name`),
+          importanceHint: channel?.importanceHint === undefined ? undefined : boundedNumber(channel.importanceHint, 50, 0, 100, `equationNews.channels[${index}].importanceHint`)
+        }))
+      : []
+  };
+  return { cls, rss, blockbeats, equationNews, polymarket, gdelt, marketMoves, digest };
 }
 
 const DIGEST_REGIONS = ["us", "asia", "europe", "stocks", "cross"];

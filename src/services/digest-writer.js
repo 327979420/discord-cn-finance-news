@@ -25,6 +25,8 @@ const SYSTEM = `你是中文财经简报编辑，为一个散户交易者的 Dis
 - 一律用简体中文。繁体、英文都要改写成简体中文。
 - 同一事件的多条（不同来源、不同角度）合并成一行，并在 sources 里列出所有用到的编号。
 - 每行只讲一件事，最多 ${MAX_LINE_CHARS} 个字，先写主体和动作，再写关键数字（金额、涨跌幅、价位、概率）。能解释行情的原因要写进去（例如“财报好于预期但收跌近 3%，市场担心出口管制”）。
+- 条目里以“背景（方程式AI检索，仅供参考）”开头的部分是第三方 AI 写的背景，只用来理解事件；正文以标题里的事实为准，背景里的说法不要当成新消息写出来。
+- “方程式美股异动”“方程式加密行情”是行情监控：只挑幅度最大、有新闻能解释的几只写，同类合并成一行（例如“芯片股盘前大涨：TSM +18%、LITE +20%”）。
 - 只写条目里明确写到的事实和数字，数字照抄，不换算、不估算、不补充背景知识。条目没有给出的数字一个都不要写。
 - 删掉没有实际信息的条目：标题党（“这档”“原因曝光”“他说…”）、问句、预告、观点评论、八卦、广告、行情回顾里重复的涨跌。宁缺毋滥，没有值得写的就少写。
 - 不写投资建议，不预测，不加“快讯”“突发”之类前缀，不用 Markdown、表情和链接。
@@ -66,7 +68,7 @@ const SCHEMA = {
 export function buildPrompt({ slot, items, marketText, timeZone }) {
   const lines = items.map((item, index) => {
     const description = cleanText(item.description);
-    const extra = description && !description.startsWith(cleanText(item.title)) ? ` —— ${truncateChineseStyle(description, 160)}` : "";
+    const extra = description && !description.startsWith(cleanText(item.title)) ? ` —— ${truncateChineseStyle(description, 220)}` : "";
     return `[${index + 1}] ${localTimeLabel(new Date(item.publishedAt), timeZone)} ${item.source}｜${cleanText(item.title)}${extra}`;
   });
   return [

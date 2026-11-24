@@ -49,6 +49,7 @@ export async function runDigestCycle(deps) {
   const eligible = [...items, ...pooled].filter((item) => {
     if (item.sourceKind === "market") return false; // shown in the market rows instead
     if (String(item.sourceKind).startsWith("polymarket") && !isFinanciallyRelevantText(`${item.title} ${item.description || ""}`)) return false;
+    if (String(item.sourceKind).startsWith("polymarket") && polymarketDecided(item.description)) return false;
     const publishedAt = Date.parse(item.publishedAt);
     if (item.timestampReliable === false || !Number.isFinite(publishedAt)) return false;
     if (publishedAt > now.getTime() + 300000 || publishedAt < windowStart) return false;
@@ -134,6 +135,14 @@ export async function runDigestCycle(deps) {
     if (failedSources === 0) store.recordSuccessfulCycle(now.toISOString());
   }
   return result;
+}
+
+// A market already at ~0% or ~100% has been decided; its "move" is not news.
+export function polymarketDecided(description) {
+  const match = String(description || "").match(/当前概率约\s*(\d+(?:\.\d+)?)%/);
+  if (!match) return false;
+  const probability = Number(match[1]);
+  return probability >= 97 || probability <= 3;
 }
 
 function errorText(error) {

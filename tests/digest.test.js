@@ -211,3 +211,52 @@ test("long topics split into extra fields and URLs drop when the card is too big
   assert.equal(embed.fields.filter((field) => field.name !== "​").length, 2);
   assert.equal(embed.fields.flatMap((field) => field.value.split("\n")).length, 9);
 });
+
+test("EquationNews items become clean simplified-Chinese news and skip exchange notices", async () => {
+  const { toNewsItem, cleanHeadline, backgroundText } = await import("../src/sources/equation-news-source.js");
+  const channel = { key: "tradfi", name: "方程式财经", importanceHint: 55 };
+  assert.equal(cleanHeadline("*英伟达高层在最后一刻才得知该决定\n\n*英伟达在黄仁勋一事上的态度逆转未征求领导层意见\n\n$NVDA"),
+    "英伟达高层在最后一刻才得知该决定；英伟达在黄仁勋一事上的态度逆转未征求领导层意见");
+  const item = toNewsItem({
+    no: 17063, time: "2026-11-23T19:01:45.465Z", channels: ["tradfi"], source: "PhoenixNews",
+    zh: "*黄仁勋：第二次担任CEO我会做得更好", url: "https://eqn.news/tradfi/17063",
+    ai: { summary: null, overview: { status: "ready", zh: { paragraphs: [{ text: "22日，董事会一致同意他复职。" }] } } }
+  }, channel);
+  assert.deepEqual(
+    { id: item.id, source: item.source, title: item.title, url: item.url, hint: item.importanceHint },
+    { id: "eqn:17063", source: "方程式财经", title: "黄仁勋：第二次担任CEO我会做得更好", url: "https://eqn.news/tradfi/17063", hint: 55 }
+  );
+  assert.match(item.description, /^背景（方程式AI检索，仅供参考）：22日/);
+  assert.equal(toNewsItem({ no: 1, time: "2026-11-24T03:45:00Z", channels: ["main", "korea"], source: "UPBIT LISTING", zh: "[新增市场] 新增 Orochi Network(ON) 韩元市场" }, channel), undefined);
+  assert.equal(toNewsItem({ no: 2, time: "2026-11-20T06:15:00Z", channels: ["main"], source: "Binance EN", zh: "Binance Futures 将上线多个 TradFi 永续合约" }, channel), undefined);
+  assert.equal(backgroundText({ overview: { status: "pending" } }), "");
+});
+
+test("EquationNews pages back until the lookback window", async () => {
+  const { EquationNewsSource } = await import("../src/sources/equation-news-source.js");
+  const now = Date.now();
+  const page = (start, cursor) => ({ items: Array.from({ length: 50 }, (_, i) => ({ no: start + i, time: new Date(now - (start + i) * 600000).toISOString(), channels: ["tradfi"], source: "Tradfin", zh: `第${start + i}条新闻标题内容` })), next_cursor: cursor });
+  const requested = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    requested.push(String(url));
+    const before = new URL(url).searchParams.get("before");
+    return new Response(JSON.stringify(before ? page(50, "c2") : page(0, "c1")), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  try {
+    const source = new EquationNewsSource({ channels: [{ key: "tradfi", name: "方程式财经" }], lookbackHours: 12, maxPages: 4 });
+    const items = await source.fetch({ timeoutMs: 1000 });
+    assert.equal(requested.length, 2); // second page reaches past 12 hours, so it stops
+    assert.ok(items.every((item) => now - Date.parse(item.publishedAt) <= 12 * 3600000));
+    assert.equal(items.length, 73); // items 0..72 are within 12h at 10-minute spacing
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("decided Polymarket markets are left out of cards", async () => {
+  const { polymarketDecided } = await import("../src/digest.js");
+  assert.equal(polymarketDecided("Polymarket概率1小时上升14.4个百分点，当前概率约100%；事件成交量约$11.0M"), true);
+  assert.equal(polymarketDecided("Polymarket概率24小时下降17.0个百分点，当前概率约28%；事件成交量约$11.0M"), false);
+  assert.equal(polymarketDecided("当前概率约2%"), true);
+});

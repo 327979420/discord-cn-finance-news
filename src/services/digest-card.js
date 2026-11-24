@@ -12,6 +12,7 @@ const EMBED_BUDGET = 5600; // Discord allows 6000 characters per embed; leave ro
 
 const SOURCE_LABEL = [
   [/^BlockBeats/i, "律动"],
+  [/^方程式/, "方程式"],
   [/^Yahoo/i, "Yahoo"],
   [/^Polymarket/i, "Polymarket"],
   [/^GDELT · (.+)$/, (match) => match[1].replace(/^www\./, "")],
