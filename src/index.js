@@ -5,9 +5,13 @@ import { loadConfig } from "./config.js";
 import { startHealthServer } from "./health.js";
 import { createLogger } from "./logger.js";
 import { runPipelineCycle } from "./pipeline.js";
+import { runDigestCycle } from "./digest.js";
+import { digestDue, latestSlot } from "./services/digest-schedule.js";
+import { ClaudeDigestWriter, HeadlineDigestWriter } from "./services/digest-writer.js";
 import { DiscordPublisher } from "./services/discord.js";
 import { Summarizer } from "./services/summarizer.js";
 import { BlockBeatsSource } from "./sources/blockbeats-source.js";
+import { EquationNewsSource } from "./sources/equation-news-source.js";
 import { ClsSource } from "./sources/cls-source.js";
 import { GdeltSource } from "./sources/gdelt-source.js";
 import { MarketMovesSource } from "./sources/market-moves-source.js";
@@ -22,7 +26,14 @@ const config = loadConfig();
 const store = new NewsStore(config.DATABASE_PATH);
 const pruned = config.DRY_RUN ? { processed: 0, sent: 0 } : store.prune();
 if (pruned.processed || pruned.sent) logger.info(pruned, "已清理过期去重状态");
-const sources = createSources(config);
+const digestConfig = config.sources.digest;
+const claudeWriter = digestConfig.enabled && config.DIGEST_WRITER === "claude";
+// Cards can include English sources because Claude translates them; the
+// between-cards path cannot, so it never fetches them.
+const sources = createSources(config, { english: Boolean(config.OPENAI_API_KEY) && !digestConfig.enabled });
+const digestSources = digestConfig.enabled ? createSources(config, { english: claudeWriter || Boolean(config.OPENAI_API_KEY), digest: true }) : sources;
+const digestWriter = claudeWriter ? new ClaudeDigestWriter({ model: config.DIGEST_MODEL }) : new HeadlineDigestWriter();
+const fallbackWriter = new HeadlineDigestWriter();
 const summarizer = new Summarizer({
   apiKey: config.OPENAI_API_KEY,
   model: config.OPENAI_MODEL,
@@ -47,7 +58,10 @@ async function cycle() {
   if (running || shuttingDown) return undefined;
   running = true;
   try {
-    const result = await runPipelineCycle({ config, sources, store, summarizer, publisher, logger });
+    const due = decideDigest();
+    const result = due
+      ? await runDigestCycle({ config, sources: digestSources, store, writer: digestWriter, fallbackWriter, publisher, logger, slot: due.slot })
+      : await runPipelineCycle({ config: { ...config, BREAKING_ONLY: digestConfig.enabled }, sources, store, summarizer, publisher, logger });
     healthState.lastCycleAt = new Date().toISOString();
     healthState.lastCycleOk = cycleIsHealthy(result, sources.length);
     healthState.lastCycleResult = result;
@@ -89,7 +103,15 @@ if (config.RUN_ONCE) {
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
 }
 
-function createSources(config) {
+function decideDigest() {
+  if (!digestConfig.enabled) return undefined;
+  if (config.FORCE_DIGEST) return { slot: latestSlot(digestConfig) };
+  const due = digestDue(digestConfig, store.getState("last_digest_slot"));
+  logger.info({ due: due.due, reason: due.reason, slot: due.slot?.key }, due.due ? "到点发送简报卡" : "非简报时段，只检查紧急事件");
+  return due.due ? due : undefined;
+}
+
+function createSources(config, options = {}) {
   const sourcesConfig = config.sources;
   const result = [];
   if (sourcesConfig.cls.enabled) result.push(new ClsSource(sourcesConfig.cls));
@@ -97,16 +119,21 @@ function createSources(config) {
     if (source.enabled) result.push(new RssSource(source));
   }
   if (sourcesConfig.blockbeats.enabled) result.push(new BlockBeatsSource(sourcesConfig.blockbeats));
+  if (sourcesConfig.equationNews.enabled && sourcesConfig.equationNews.channels.length) {
+    // Between cards only the latest page matters; a card pages back over its whole window.
+    result.push(new EquationNewsSource({ ...sourcesConfig.equationNews, maxPages: options.digest ? sourcesConfig.equationNews.maxPages : 1 }));
+  }
   if (sourcesConfig.marketMoves.enabled && sourcesConfig.marketMoves.instruments.length) {
     result.push(new MarketMovesSource(sourcesConfig.marketMoves));
   }
-  if (sourcesConfig.polymarket.enabled && config.OPENAI_API_KEY) {
-    result.push(new PolymarketSource(sourcesConfig.polymarket));
+  // English sources are extras for the card; their outages are logged, not alerted.
+  if (sourcesConfig.polymarket.enabled && options.english) {
+    result.push(Object.assign(new PolymarketSource(sourcesConfig.polymarket), { optional: digestConfig.enabled }));
   }
-  if (sourcesConfig.gdelt.enabled && sourcesConfig.gdelt.queries.length && config.OPENAI_API_KEY) {
-    result.push(new GdeltSource(sourcesConfig.gdelt));
+  if (sourcesConfig.gdelt.enabled && sourcesConfig.gdelt.queries.length && options.english) {
+    result.push(Object.assign(new GdeltSource(sourcesConfig.gdelt), { optional: digestConfig.enabled }));
   }
-  if (!config.OPENAI_API_KEY && (sourcesConfig.polymarket.enabled || sourcesConfig.gdelt.enabled)) {
+  if (!options.english && !digestConfig.enabled && (sourcesConfig.polymarket.enabled || sourcesConfig.gdelt.enabled)) {
     logger.warn({ polymarketEnabled: false, gdeltEnabled: false }, "未配置 OPENAI_API_KEY，英文来源未启用；中文来源继续运行");
   }
   if (!result.length) throw new Error("config/sources.json 中没有启用任何新闻源");

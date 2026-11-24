@@ -29,6 +29,13 @@ export function loadConfig() {
     IMAGE_EVERY_N_MESSAGES: integer("IMAGE_EVERY_N_MESSAGES", 10, 1, 100),
     IMAGE_MIN_IMPORTANCE_SCORE: integer("IMAGE_MIN_IMPORTANCE_SCORE", 82, 0, 100),
     SIMILAR_NEWS_WINDOW_HOURS: integer("SIMILAR_NEWS_WINDOW_HOURS", 36, 1, 168),
+    // Between digest cards only true emergencies post on their own, at most this many a day.
+    BREAKING_ONLY_SCORE: integer("BREAKING_ONLY_SCORE", 95, 0, 100),
+    MAX_BREAKING_PER_DAY: integer("MAX_BREAKING_PER_DAY", 3, 0, 50),
+    // claude (headless Claude Code with CLAUDE_CODE_OAUTH_TOKEN) or none (headline-only card).
+    DIGEST_WRITER: process.env.DIGEST_WRITER || (cleanOptional(process.env.CLAUDE_CODE_OAUTH_TOKEN) ? "claude" : "none"),
+    DIGEST_MODEL: process.env.DIGEST_MODEL || "sonnet",
+    FORCE_DIGEST: boolean("FORCE_DIGEST", false),
     includeKeywords: splitKeywords(process.env.INCLUDE_KEYWORDS || ""),
     excludeKeywords: splitKeywords(process.env.EXCLUDE_KEYWORDS || "广告,促销,优惠券"),
     sources
@@ -86,6 +93,8 @@ function readSources(filePath) {
       ? raw.marketMoves.instruments.map((instrument, index) => ({
           symbol: requiredString(instrument?.symbol, `marketMoves.instruments[${index}].symbol`),
           name: requiredString(instrument?.name, `marketMoves.instruments[${index}].name`),
+          short: cleanOptional(instrument?.short),
+          region: cleanOptional(instrument?.region),
           group: cleanOptional(instrument?.group) || "index",
           type: cleanOptional(instrument?.type) || "index",
           dayThreshold: boundedNumber(instrument?.dayThreshold, 2, 0.1, 100, `marketMoves.instruments[${index}].dayThreshold`),
@@ -94,7 +103,49 @@ function readSources(filePath) {
         }))
       : []
   };
-  return { cls, rss, blockbeats, polymarket, gdelt, marketMoves };
+  const digest = readDigest(raw.digest);
+  const equationNews = {
+    enabled: raw.equationNews?.enabled === true,
+    lookbackHours: boundedNumber(raw.equationNews?.lookbackHours, 18, 1, 72, "equationNews.lookbackHours"),
+    maxPages: boundedNumber(raw.equationNews?.maxPages, 4, 1, 10, "equationNews.maxPages"),
+    channels: Array.isArray(raw.equationNews?.channels)
+      ? raw.equationNews.channels.map((channel, index) => ({
+          key: requiredString(channel?.key, `equationNews.channels[${index}].key`),
+          name: requiredString(channel?.name, `equationNews.channels[${index}].name`),
+          importanceHint: channel?.importanceHint === undefined ? undefined : boundedNumber(channel.importanceHint, 50, 0, 100, `equationNews.channels[${index}].importanceHint`)
+        }))
+      : []
+  };
+  return { cls, rss, blockbeats, equationNews, polymarket, gdelt, marketMoves, digest };
+}
+
+const DIGEST_REGIONS = ["us", "asia", "europe", "stocks", "cross"];
+
+function readDigest(raw) {
+  const timezone = cleanOptional(raw?.timezone) || "Asia/Shanghai";
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: timezone });
+  } catch {
+    throw new Error(`digest.timezone 无效：${timezone}`);
+  }
+  const slots = Array.isArray(raw?.slots) ? raw.slots.map((slot, index) => {
+    const time = requiredString(slot?.time, `digest.slots[${index}].time`);
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error(`digest.slots[${index}].time 必须是 HH:MM`);
+    const regions = Array.isArray(slot?.regions) ? slot.regions.map(String) : [];
+    for (const region of regions) {
+      if (!DIGEST_REGIONS.includes(region)) throw new Error(`digest.slots[${index}].regions 含未知地区：${region}`);
+    }
+    return { time, title: requiredString(slot?.title, `digest.slots[${index}].title`), regions };
+  }) : [];
+  return {
+    enabled: raw?.enabled === true && slots.length > 0,
+    timezone,
+    maxLateMinutes: boundedNumber(raw?.maxLateMinutes, 150, 10, 720, "digest.maxLateMinutes"),
+    maxWindowHours: boundedNumber(raw?.maxWindowHours, 18, 1, 72, "digest.maxWindowHours"),
+    maxCandidates: boundedNumber(raw?.maxCandidates, 40, 5, 120, "digest.maxCandidates"),
+    minCandidateScore: boundedNumber(raw?.minCandidateScore, 45, 0, 100, "digest.minCandidateScore"),
+    slots
+  };
 }
 
 function requiredString(value, label) {

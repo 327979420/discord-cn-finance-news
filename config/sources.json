@@ -19,6 +19,17 @@
       "enabled": true
     }
   ],
+  "equationNews": {
+    "enabled": true,
+    "lookbackHours": 18,
+    "maxPages": 4,
+    "channels": [
+      { "key": "tradfi", "name": "方程式财经", "importanceHint": 55 },
+      { "key": "main", "name": "方程式新闻", "importanceHint": 50 },
+      { "key": "tfmoves", "name": "方程式美股异动", "importanceHint": 50 },
+      { "key": "major", "name": "方程式加密行情", "importanceHint": 50 }
+    ]
+  },
   "blockbeats": {
     "enabled": true,
     "url": "https://www.theblockbeats.info/newsflash/",
@@ -30,32 +41,32 @@
     "interval": "5m",
     "concurrency": 1,
     "instruments": [
-      { "symbol": "^GSPC", "name": "标普500", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
-      { "symbol": "^IXIC", "name": "纳斯达克综合指数", "group": "index", "type": "index", "dayThreshold": 1.8, "suddenThreshold": 0.9, "suddenMinutes": 30 },
-      { "symbol": "^DJI", "name": "道琼斯指数", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
-      { "symbol": "^N225", "name": "日经225", "group": "index", "type": "index", "dayThreshold": 2.0, "suddenThreshold": 1.0, "suddenMinutes": 30 },
-      { "symbol": "^HSI", "name": "恒生指数", "group": "index", "type": "index", "dayThreshold": 2.0, "suddenThreshold": 1.0, "suddenMinutes": 30 },
-      { "symbol": "^KS11", "name": "韩国KOSPI", "group": "index", "type": "index", "dayThreshold": 2.0, "suddenThreshold": 1.0, "suddenMinutes": 30 },
-      { "symbol": "^GDAXI", "name": "德国DAX", "group": "index", "type": "index", "dayThreshold": 1.8, "suddenThreshold": 0.9, "suddenMinutes": 30 },
-      { "symbol": "^FTSE", "name": "英国FTSE100", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
-      { "symbol": "^FCHI", "name": "法国CAC40", "group": "index", "type": "index", "dayThreshold": 1.8, "suddenThreshold": 0.9, "suddenMinutes": 30 },
-      { "symbol": "^AXJO", "name": "澳洲ASX200", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
-      { "symbol": "NVDA", "name": "英伟达", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
-      { "symbol": "TSLA", "name": "特斯拉", "group": "stock", "type": "stock", "dayThreshold": 5.0, "suddenThreshold": 3.0, "suddenMinutes": 30 },
-      { "symbol": "META", "name": "Meta", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
-      { "symbol": "AAPL", "name": "苹果", "group": "stock", "type": "stock", "dayThreshold": 3.5, "suddenThreshold": 2.0, "suddenMinutes": 30 },
-      { "symbol": "MSFT", "name": "微软", "group": "stock", "type": "stock", "dayThreshold": 3.5, "suddenThreshold": 2.0, "suddenMinutes": 30 },
-      { "symbol": "AMZN", "name": "亚马逊", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
-      { "symbol": "GOOGL", "name": "Alphabet", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
-      { "symbol": "PLTR", "name": "Palantir", "group": "stock", "type": "stock", "dayThreshold": 6.0, "suddenThreshold": 3.5, "suddenMinutes": 30 },
-      { "symbol": "COIN", "name": "Coinbase", "group": "stock", "type": "stock", "dayThreshold": 7.0, "suddenThreshold": 4.0, "suddenMinutes": 30 },
-      { "symbol": "MSTR", "name": "Strategy", "group": "stock", "type": "stock", "dayThreshold": 7.0, "suddenThreshold": 4.0, "suddenMinutes": 30 },
-      { "symbol": "ORCL", "name": "甲骨文", "group": "stock", "type": "stock", "dayThreshold": 5.0, "suddenThreshold": 3.0, "suddenMinutes": 30 },
-      { "symbol": "GC=F", "name": "黄金", "group": "cross-asset", "type": "commodity", "dayThreshold": 2.0, "suddenThreshold": 1.0, "suddenMinutes": 30 },
-      { "symbol": "CL=F", "name": "WTI原油", "group": "cross-asset", "type": "commodity", "dayThreshold": 3.5, "suddenThreshold": 2.0, "suddenMinutes": 30 },
-      { "symbol": "DX-Y.NYB", "name": "美元指数", "group": "cross-asset", "type": "fx", "dayThreshold": 1.0, "suddenThreshold": 0.5, "suddenMinutes": 30 },
-      { "symbol": "BTC-USD", "name": "比特币", "group": "cross-asset", "type": "crypto", "dayThreshold": 5.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
-      { "symbol": "ETH-USD", "name": "以太坊", "group": "cross-asset", "type": "crypto", "dayThreshold": 6.0, "suddenThreshold": 3.0, "suddenMinutes": 30 }
+      { "symbol": "^GSPC", "name": "标普500", "short": "标普", "region": "us", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
+      { "symbol": "^IXIC", "name": "纳斯达克综合指数", "short": "纳指", "region": "us", "group": "index", "type": "index", "dayThreshold": 1.8, "suddenThreshold": 0.9, "suddenMinutes": 30 },
+      { "symbol": "^DJI", "name": "道琼斯指数", "short": "道指", "region": "us", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
+      { "symbol": "^N225", "name": "日经225", "short": "日经", "region": "asia", "group": "index", "type": "index", "dayThreshold": 2.0, "suddenThreshold": 1.0, "suddenMinutes": 30 },
+      { "symbol": "^HSI", "name": "恒生指数", "short": "恒指", "region": "asia", "group": "index", "type": "index", "dayThreshold": 2.0, "suddenThreshold": 1.0, "suddenMinutes": 30 },
+      { "symbol": "^KS11", "name": "韩国KOSPI", "short": "KOSPI", "region": "asia", "group": "index", "type": "index", "dayThreshold": 2.0, "suddenThreshold": 1.0, "suddenMinutes": 30 },
+      { "symbol": "^GDAXI", "name": "德国DAX", "short": "DAX", "region": "europe", "group": "index", "type": "index", "dayThreshold": 1.8, "suddenThreshold": 0.9, "suddenMinutes": 30 },
+      { "symbol": "^FTSE", "name": "英国FTSE100", "short": "FTSE", "region": "europe", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
+      { "symbol": "^FCHI", "name": "法国CAC40", "short": "CAC", "region": "europe", "group": "index", "type": "index", "dayThreshold": 1.8, "suddenThreshold": 0.9, "suddenMinutes": 30 },
+      { "symbol": "^AXJO", "name": "澳洲ASX200", "short": "澳股", "region": "asia", "group": "index", "type": "index", "dayThreshold": 1.5, "suddenThreshold": 0.8, "suddenMinutes": 30 },
+      { "symbol": "NVDA", "name": "英伟达", "short": "NVDA", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
+      { "symbol": "TSLA", "name": "特斯拉", "short": "TSLA", "group": "stock", "type": "stock", "dayThreshold": 5.0, "suddenThreshold": 3.0, "suddenMinutes": 30 },
+      { "symbol": "META", "name": "Meta", "short": "META", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
+      { "symbol": "AAPL", "name": "苹果", "short": "AAPL", "group": "stock", "type": "stock", "dayThreshold": 3.5, "suddenThreshold": 2.0, "suddenMinutes": 30 },
+      { "symbol": "MSFT", "name": "微软", "short": "MSFT", "group": "stock", "type": "stock", "dayThreshold": 3.5, "suddenThreshold": 2.0, "suddenMinutes": 30 },
+      { "symbol": "AMZN", "name": "亚马逊", "short": "AMZN", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
+      { "symbol": "GOOGL", "name": "Alphabet", "short": "GOOGL", "group": "stock", "type": "stock", "dayThreshold": 4.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
+      { "symbol": "PLTR", "name": "Palantir", "short": "PLTR", "group": "stock", "type": "stock", "dayThreshold": 6.0, "suddenThreshold": 3.5, "suddenMinutes": 30 },
+      { "symbol": "COIN", "name": "Coinbase", "short": "COIN", "group": "stock", "type": "stock", "dayThreshold": 7.0, "suddenThreshold": 4.0, "suddenMinutes": 30 },
+      { "symbol": "MSTR", "name": "Strategy", "short": "MSTR", "group": "stock", "type": "stock", "dayThreshold": 7.0, "suddenThreshold": 4.0, "suddenMinutes": 30 },
+      { "symbol": "ORCL", "name": "甲骨文", "short": "ORCL", "group": "stock", "type": "stock", "dayThreshold": 5.0, "suddenThreshold": 3.0, "suddenMinutes": 30 },
+      { "symbol": "GC=F", "name": "黄金", "short": "黄金", "group": "cross-asset", "type": "commodity", "dayThreshold": 2.0, "suddenThreshold": 1.0, "suddenMinutes": 30 },
+      { "symbol": "CL=F", "name": "WTI原油", "short": "原油", "group": "cross-asset", "type": "commodity", "dayThreshold": 3.5, "suddenThreshold": 2.0, "suddenMinutes": 30 },
+      { "symbol": "DX-Y.NYB", "name": "美元指数", "short": "美元", "group": "cross-asset", "type": "fx", "dayThreshold": 1.0, "suddenThreshold": 0.5, "suddenMinutes": 30 },
+      { "symbol": "BTC-USD", "name": "比特币", "short": "BTC", "group": "cross-asset", "type": "crypto", "dayThreshold": 5.0, "suddenThreshold": 2.5, "suddenMinutes": 30 },
+      { "symbol": "ETH-USD", "name": "以太坊", "short": "ETH", "group": "cross-asset", "type": "crypto", "dayThreshold": 6.0, "suddenThreshold": 3.0, "suddenMinutes": 30 }
     ]
   },
   "polymarket": {
@@ -73,6 +84,20 @@
       "NVIDIA OR Apple OR Microsoft OR Meta OR Tesla OR OpenAI AND (earnings OR guidance OR antitrust OR outage OR cyberattack)",
       "earthquake OR tsunami OR pandemic OR outbreak OR WHO emergency OR nuclear accident OR mass evacuation",
       "war OR ceasefire OR missile OR airstrike OR Strait of Hormuz OR oil supply OR coup OR assassination"
+    ]
+  },
+  "digest": {
+    "enabled": true,
+    "timezone": "Asia/Shanghai",
+    "maxLateMinutes": 150,
+    "maxWindowHours": 18,
+    "maxCandidates": 40,
+    "minCandidateScore": 45,
+    "slots": [
+      { "time": "07:30", "title": "早报 · 美股收盘", "regions": ["us", "stocks", "cross", "europe"] },
+      { "time": "12:00", "title": "午间 · 亚太盘中", "regions": ["asia", "cross"] },
+      { "time": "17:00", "title": "傍晚 · 欧洲开盘", "regions": ["europe", "asia", "cross"] },
+      { "time": "21:15", "title": "晚间 · 美股开盘前", "regions": ["europe", "cross"] }
     ]
   }
 }

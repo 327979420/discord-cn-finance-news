@@ -90,6 +90,16 @@ const HUMANITARIAN_MAJOR = [
   "hundreds killed", "nuclear leak", "major earthquake", "major tsunami"
 ];
 
+// Events worth a message of their own between digest cards. Narrower than
+// VERY_HIGH_IMPACT: routine crypto liquidations and depegs wait for the card.
+const EMERGENCY = [
+  "熔断", "暂停交易", "停止交易", "交易中断", "紧急降息", "紧急加息", "意外降息", "意外加息",
+  "主权违约", "债务违约", "申请破产", "挤兑", "被接管", "稳定币脱锚", "交易所被盗",
+  "战争爆发", "开战", "宣战", "封锁海峡", "停火协议", "政变", "遇刺", "戒严", "核事故", "核泄漏", "海啸",
+  "circuit breaker", "trading halt", "emergency rate cut", "emergency rate hike", "files for bankruptcy",
+  "bank run", "declares war", "coup", "assassinated", "martial law", "nuclear accident", "tsunami"
+];
+
 const LOW_SIGNAL = [
   "预计", "或将", "可能", "有望", "据悉", "消息称", "知情人士", "分析师认为", "机构观点",
   "某鲸鱼", "鲸鱼", "某地址", "链上数据显示", "转入交易所", "转出交易所", "融资完成",
@@ -247,6 +257,11 @@ export function selectImportantItems(items, options = {}) {
   return { selected, evaluated };
 }
 
+// Polymarket lists sports and pop-culture markets too; cards keep the financial ones.
+export function isFinanciallyRelevantText(value) {
+  return isFinanciallyRelevant(normalize(value));
+}
+
 function isFinanciallyRelevant(text) {
   return hasAny(text, [...MACRO, ...MARKET_ASSETS, ...CORPORATE_ACTION, ...MAJOR_ENTITIES, ...TECH_HIGH_SIGNAL, ...CRYPTO_HIGH_SIGNAL, ...MARKET_NEXUS]);
 }
@@ -291,6 +306,15 @@ function looksLikeQuestionOrFeature(title) {
 
 function normalize(value) {
   return normalizeForMatching(stripHtml(String(value || "")).replace(/https?:\/\/\S+/gi, "").replace(/\s+/g, " ").trim());
+}
+
+// True for a market alert at 1.5x its daily threshold, or a scored news item that
+// names an emergency (or a large earthquake). Used for the between-cards path.
+export function isEmergency(item, importance) {
+  if (item.sourceKind === "market") return Number(item.moveStrength) >= 1.5;
+  if (!importance?.shouldSend) return false;
+  if (importance.reasons?.includes("large-earthquake")) return true;
+  return hasAny(normalize(`${item.title || ""} ${item.description || ""}`), EMERGENCY);
 }
 
 export function isMajorEarningsResult(title, description = "") {

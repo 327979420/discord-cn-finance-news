@@ -29,6 +29,11 @@ export class NewsStore {
         sent_since_image INTEGER NOT NULL DEFAULT 0
       ) STRICT;
       INSERT OR IGNORE INTO delivery_state (singleton, sent_since_image) VALUES (1, 0);
+      CREATE TABLE IF NOT EXISTS news_pool (
+        item_id TEXT PRIMARY KEY,
+        published_at TEXT NOT NULL,
+        item_json TEXT NOT NULL
+      ) STRICT;
       CREATE TABLE IF NOT EXISTS runtime_state (
         key TEXT PRIMARY KEY,
         value TEXT NOT NULL
@@ -46,6 +51,41 @@ export class NewsStore {
 
   recordSuccessfulCycle(at) {
     this.database.prepare("INSERT OR REPLACE INTO runtime_state (key, value) VALUES ('last_successful_cycle_at', ?)").run(at);
+  }
+
+  breakingSentToday(now = new Date()) {
+    return Number(this.getState(`breaking_sent:${beijingDay(now)}`) || 0);
+  }
+
+  countBreakingSent(now = new Date()) {
+    this.setState(`breaking_sent:${beijingDay(now)}`, this.breakingSentToday(now) + 1);
+  }
+
+  // Sources only list their latest items (Yahoo about three hours' worth), so
+  // runs between cards keep what they saw here for the next card to use.
+  addToPool(items) {
+    const insert = this.database.prepare("INSERT OR IGNORE INTO news_pool (item_id, published_at, item_json) VALUES (?, ?, ?)");
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      for (const item of items) insert.run(item.id, item.publishedAt, JSON.stringify(item));
+      this.database.exec("COMMIT");
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  poolSince(sinceIso) {
+    return this.database.prepare("SELECT item_json FROM news_pool WHERE published_at >= ? ORDER BY published_at").all(sinceIso)
+      .map((row) => JSON.parse(row.item_json));
+  }
+
+  getState(key) {
+    return this.database.prepare("SELECT value FROM runtime_state WHERE key = ?").get(key)?.value;
+  }
+
+  setState(key, value) {
+    this.database.prepare("INSERT OR REPLACE INTO runtime_state (key, value) VALUES (?, ?)").run(key, String(value));
   }
 
   pendingNewsAt() {
@@ -107,6 +147,26 @@ export class NewsStore {
     }
   }
 
+  // Items a digest card used count as sent (so later cards and breaking posts skip
+  // them); the rest of the window's candidates are closed as digest-omitted.
+  recordDigest(usedItems, omittedItems, slotKey, contentHashFor) {
+    const now = new Date().toISOString();
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      const sent = this.database.prepare(`INSERT OR IGNORE INTO sent_messages (content_hash, message_hash, source, title, url, published_at, sent_at) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+      const processed = this.database.prepare(`INSERT OR REPLACE INTO processed_items (item_id, source, status, processed_at) VALUES (?, ?, ?, ?)`);
+      for (const item of usedItems) {
+        sent.run(contentHashFor(item), `digest:${slotKey}:${item.id}`, item.source, item.title, item.url || null, item.publishedAt, now);
+        processed.run(item.id, item.source, "digested", now);
+      }
+      for (const item of omittedItems) processed.run(item.id, item.source, "digest-omitted", now);
+      this.database.exec("COMMIT");
+    } catch (error) {
+      this.database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
   sentSinceImage() {
     return this.database.prepare("SELECT sent_since_image FROM delivery_state WHERE singleton = 1").get().sent_since_image;
   }
@@ -122,6 +182,8 @@ export class NewsStore {
     const sentCutoff = new Date(Date.now() - (options.sentDays ?? 180) * 86400000).toISOString();
     const processed = this.database.prepare("DELETE FROM processed_items WHERE processed_at < ?").run(processedCutoff).changes;
     const sent = this.database.prepare("DELETE FROM sent_messages WHERE sent_at < ?").run(sentCutoff).changes;
+    this.database.prepare("DELETE FROM news_pool WHERE published_at < ?").run(new Date(Date.now() - 3 * 86400000).toISOString());
+    this.database.prepare("DELETE FROM runtime_state WHERE key LIKE 'breaking_sent:%' AND key < ?").run(`breaking_sent:${beijingDay(new Date(Date.now() - 7 * 86400000))}`);
     return { processed, sent };
   }
 
@@ -132,6 +194,10 @@ export class NewsStore {
       this.database.close();
     }
   }
+}
+
+function beijingDay(date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai" }).format(date);
 }
 
 function numberSignature(title) {
